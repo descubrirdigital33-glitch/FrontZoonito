@@ -1,6 +1,7 @@
-"use client";
-import { useEffect, useState, useContext, useRef } from 'react';
+'use client'; // ✅ esta línea al inicio
+
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useContext } from 'react';
 import { UserContext } from '../context/UserContext';
 import { Trash2, Edit, Music, Disc3, Play, Pause, Image, GripVertical, Check, X, Upload, Save, ArrowLeft } from 'lucide-react';
 
@@ -434,3 +435,4 @@ export default function SubirCD() {
     </div>
   );
 }
+
