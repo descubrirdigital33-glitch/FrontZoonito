@@ -89,7 +89,6 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen animate-gradient-x relative overflow-hidden flex items-start justify-center p-4 pt-20">
-      {/* Overlay para contraste */}
       <div className="absolute inset-0 bg-black/60 z-0"></div>
 
       {/* Efectos de fondo */}
@@ -522,4 +521,5 @@ export default function RegisterPage() {
       `}</style>
     </div>
   );
+
 }
