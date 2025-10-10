@@ -70,9 +70,9 @@ export default function SubirCD() {
   const [uploadMessage, setUploadMessage] = useState('');
   const [isLoadingCD, setIsLoadingCD] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const coverInputRef = useRef<HTMLInputElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
+const fileInputRef = useRef<HTMLInputElement>(null);
+const coverInputRef = useRef<HTMLInputElement>(null);
+const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     if (user && user._id === userIdFromQuery) {
@@ -435,4 +435,5 @@ export default function SubirCD() {
     </div>
   );
 }
+
 
