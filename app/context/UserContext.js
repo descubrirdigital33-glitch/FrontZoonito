@@ -1,6 +1,5 @@
 'use client';
 import { createContext, useState, useEffect } from 'react';
-
 export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
@@ -21,12 +20,11 @@ export const UserProvider = ({ children }) => {
   localStorage.removeItem('user');
   window.location.href = '/';
 };
-
-
   return (
     <UserContext.Provider value={{ user,setUser,loginUser, logoutUser }}>
       {children}
     </UserContext.Provider>
   );
 };
+
 
