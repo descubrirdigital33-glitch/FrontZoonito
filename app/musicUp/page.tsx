@@ -335,7 +335,7 @@ export default function MusicUp() {
                     background: '#1a1a2e',
                     color: '#fff',
                 }).then(() => {
-                    location.reload(); // Recarga la página después del mensaje
+                    location.reload();
                 });
             } else if (uploadErrors < validTracks.length) {
                 Swal.fire({
@@ -1069,4 +1069,5 @@ export default function MusicUp() {
       `}</style>
             </div></>
     );
+
 }
