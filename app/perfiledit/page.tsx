@@ -14,7 +14,6 @@ export default function ProfileEdit() {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Sincroniza estados con user del contexto
     useEffect(() => {
         if (user) {
             setName(user.name || "");
@@ -144,3 +143,4 @@ export default function ProfileEdit() {
         </div>
     );
 }
+
