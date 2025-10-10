@@ -194,7 +194,7 @@ export default function MusicAll() {
                 ));
             }
         } catch (err) {
-            console.error('❌ Error toggling like:', err);
+            console.error('❌ Error:', err);
         }
     };
 
@@ -864,4 +864,5 @@ ${music.album ? `📀 Álbum: ${music.album}` : ''}
             </div>
         </>
     );
+
 }
