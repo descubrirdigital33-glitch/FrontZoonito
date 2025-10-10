@@ -6,7 +6,6 @@ import { UserContext } from "../context/UserContext";
 export default function Navbar() {
   const { user, logoutUser } = useContext(UserContext);
   const [isOpen, setIsOpen] = useState(false);
-
   return (
     <nav className="navbar-enhanced sticky top-0 z-50 bg-black/30 backdrop-blur-md border-b border-white/20 px-6 py-4 flex items-center justify-between">
       {/* Logo */}
@@ -144,3 +143,4 @@ export default function Navbar() {
     </nav>
   );
 }
+
