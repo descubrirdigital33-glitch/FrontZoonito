@@ -13,7 +13,6 @@ interface Track {
   url: string;
   duration: number;
 }
-
 interface CD {
   _id: string;
   userId: string;
@@ -847,4 +846,5 @@ export default function UserCDsPage() {
 
     </>
   );
+
 }
