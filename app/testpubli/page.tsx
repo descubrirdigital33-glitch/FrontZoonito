@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect, useContext } from "react";
 import { Calendar, MapPin, Music, Share2, Snowflake, Rocket } from "lucide-react";
 import { UserContext } from "../context/UserContext";
@@ -54,7 +53,7 @@ export default function EventosFanView() {
         cargarEventos();
     }, [userId, user?.role]);
 
-    // ------------------- Carousel -------------------
+    // --------------- Carousel --------------
     const eventosVisibles = eventos.filter(
         (e) => e.promocionado || new Date(e.fecha) >= new Date()
     );
@@ -283,4 +282,5 @@ export default function EventosFanView() {
             )}
         </div>
     );
+
 }
