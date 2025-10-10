@@ -42,10 +42,6 @@ interface LocalPlaylistItem {
   url: string;
   cover?: string;
 }
-
-
-
-
 const FANPAGE_PLAYLIST_KEY = 'fanpage_local_playlist';
 
 export default function ArtistFanPage() {
@@ -103,7 +99,7 @@ export default function ArtistFanPage() {
         const allData: Music[] = await res.json();
         console.log('Datos recibidos en fanpage:', allData);
 
-        // Filtramos las canciones del artista
+        // Filtracion de las canciones del artista
         const artistSongs = allData.filter(
           song => song.artist.toLowerCase() === artistName.toLowerCase()
         );
@@ -537,4 +533,5 @@ export default function ArtistFanPage() {
       </div>
     </div>
   );
+
 }
