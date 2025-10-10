@@ -43,10 +43,10 @@ const GENRES = ['Rock', 'Pop', 'Jazz', 'Classical', 'Electronic', 'Hip-Hop', 'Fo
 
 export default function SubirCD() {
   const { user } = useContext(UserContext);
-  const searchParams = useSearchParams();
+  // const searchParams = useSearchParams();
   const router = useRouter();
-  const userIdFromQuery = searchParams.get('userId');
-  const editCdId = searchParams.get('edit'); // ID del CD a editar
+  const [userIdFromQuery, setUserIdFromQuery] = useState<string | null>(null);
+  const [editCdId, setEditCdId] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [welcomeName, setWelcomeName] = useState('');
   const [cd, setCD] = useState<CD>({
@@ -72,6 +72,12 @@ export default function SubirCD() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setUserIdFromQuery(params.get('userId'));
+    setEditCdId(params.get('edit'));
+  }, []);
 
   useEffect(() => {
     if (user && user._id === userIdFromQuery) {
