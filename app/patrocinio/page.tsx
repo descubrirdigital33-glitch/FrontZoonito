@@ -228,7 +228,6 @@ export default function EventosManager() {
         }
     };
 
-    // Nueva función para notificar al admin sobre evento congelado
     const notificarAdmin = async (evento: Evento) => {
         try {
             const avisoData = {
@@ -569,4 +568,5 @@ export default function EventosManager() {
             )}
         </div>
     );
+
 }
