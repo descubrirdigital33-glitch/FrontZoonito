@@ -32,7 +32,7 @@ const handleLogin = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     const data: LoginResponse & { message?: string } = await res.json();
     if (res.ok) {
       loginUser(data);
-      window.location.href = '/'; // 🔹 recarga completa
+      window.location.href = '/'; 
     } else {
       setError(data.message ?? 'Error al iniciar sesión');
     }
@@ -43,7 +43,6 @@ const handleLogin = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     setIsLoading(false);
   }
 };
-
 
   return (
     <div className="min-h-screen animate-gradient-x relative overflow-hidden flex items-center justify-center p-4">
@@ -375,4 +374,5 @@ const handleLogin = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
       `}</style>
     </div>
   );
+
 }
