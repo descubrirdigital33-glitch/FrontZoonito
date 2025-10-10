@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useContext, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { UserContext } from "../context/UserContext";
@@ -51,7 +50,7 @@ export default function EventosManager() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const API_URL = "https://backend-zoonito-6x8h.vercel.app/api/eventos";
-    const codigoBackend = "PROMO2025";
+    const codigoBackend = "PROMO2025GALI";
     const { user } = useContext(UserContext);
     const router = useRouter();
 
@@ -570,3 +569,4 @@ export default function EventosManager() {
     );
 
 }
+
