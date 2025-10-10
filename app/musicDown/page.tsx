@@ -35,10 +35,8 @@ export default function MusicDown() {
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // 🔹 Traer música
     useEffect(() => {
         if (!user) return;
-
 
         fetch(`https://backend-zoonito-6x8h.vercel.app/api/music?userId=${user._id}`)
             .then((res) => res.json())
@@ -406,4 +404,5 @@ export default function MusicDown() {
             </div>
         </div>
     );
+
 }
