@@ -5,7 +5,6 @@ import {
   Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Volume2, VolumeX,
   Minimize2, X, Square, Edit2, Moon, Sun
 } from "lucide-react";
-
 export interface Cancion {
   id: string;
   titulo: string;
@@ -951,5 +950,6 @@ const Reproductor = () => {
     </div>
   );
 };
+
 
 export default Reproductor;
