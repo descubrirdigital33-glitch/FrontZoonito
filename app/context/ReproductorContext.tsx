@@ -2,8 +2,7 @@
 
 import React, { createContext, useState, useContext, ReactNode, useEffect, Dispatch, SetStateAction } from "react";
 import { Cancion } from "../components/Reproductor";
-import { UserContext } from "./UserContext"; // ✅ IMPORTAR UserContext
-
+import { UserContext } from "./UserContext";
 interface ReproductorContextProps {
   lista: Cancion[];
   setLista: Dispatch<SetStateAction<Cancion[]>>;
@@ -116,4 +115,5 @@ export const useReproductor = () => {
   const context = useContext(ReproductorContext);
   if (!context) throw new Error("useReproductor debe usarse dentro de ReproductorProvider");
   return context;
+
 };
