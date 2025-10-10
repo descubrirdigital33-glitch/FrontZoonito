@@ -32,7 +32,6 @@ type TraerListasResponse = TraerListasOk | TraerListasError;
 type RepeatMode = 'off' | 'all' | 'one';
 
 const Reproductor = () => {
-  // Usar el contexto en lugar de props
   const { 
     lista: canciones, 
     setLista: setPlaylist,
@@ -953,3 +952,4 @@ const Reproductor = () => {
 
 
 export default Reproductor;
+
