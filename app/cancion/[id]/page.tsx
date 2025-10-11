@@ -2,12 +2,12 @@
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: { _id: string } }): Promise<Metadata> {
   try {
     const music = await fetch(`https://backend-zoonito-6x8h.vercel.app/api/music/${params._id}`, {
       cache: 'no-store' // O 'force-cache' según necesites
     }).then(r => r.json());
-    
+    alert(music)
     const imageUrl = music.coverUrl || music.avatarArtist || music.cover;
     const fullImageUrl = imageUrl?.startsWith('http') 
       ? imageUrl 
@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 }
 
 // 🚨 IMPORTANTE: Necesitas el componente de la página
-export default async function CancionPage({ params }: { params: { id: string } }) {
+export default async function CancionPage({ params }: { params: { _id: string } }) {
   try {
     const music = await fetch(`https://backend-zoonito-6x8h.vercel.app/api/music/${params._id}`, {
       cache: 'no-store'
@@ -65,5 +65,4 @@ export default async function CancionPage({ params }: { params: { id: string } }
   } catch (error) {
     redirect('/musicall');
   }
-
 }
