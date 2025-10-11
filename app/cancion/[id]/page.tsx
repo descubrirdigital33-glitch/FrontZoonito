@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   try {
-    const music = await fetch(`https://backend-zoonito-6x8h.vercel.app/api/music/${params.id}`, {
+    const music = await fetch(`https://backend-zoonito-6x8h.vercel.app/api/music/${params._id}`, {
       cache: 'no-store' // O 'force-cache' según necesites
     }).then(r => r.json());
     
@@ -55,14 +55,15 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 // 🚨 IMPORTANTE: Necesitas el componente de la página
 export default async function CancionPage({ params }: { params: { id: string } }) {
   try {
-    const music = await fetch(`https://backend-zoonito-6x8h.vercel.app/api/music/${params.id}`, {
+    const music = await fetch(`https://backend-zoonito-6x8h.vercel.app/api/music/${params._id}`, {
       cache: 'no-store'
     }).then(r => r.json());
 
     // Redirigir a MusicAll con la canción seleccionada
-    redirect(`/musicall?cancion=${params.id}`);
+    redirect(`/musicall?cancion=${params._id}`);
     
   } catch (error) {
     redirect('/musicall');
   }
+
 }
