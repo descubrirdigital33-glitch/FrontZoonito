@@ -879,25 +879,7 @@ import Link from 'next/link';
 import Head from 'next/head';
 import { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: 'MusicAll - Descubre Nueva Música | Zoonito Music',
-  description: 'Explora el mejor catálogo de música. Avances exclusivos, lo nuevo y lo más escuchado.',
-  openGraph: {
-    title: 'MusicAll - Descubre Nueva Música | Zoonito Music',
-    description: 'Explora el mejor catálogo de música',
-    images: ['/assets/zoonito.jpg'],
-    type: 'music.playlist',
-    siteName: 'Zoonito Music',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'MusicAll - Descubre Nueva Música',
-    description: 'Explora el mejor catálogo de música',
-    images: ['/assets/zoonito.jpg'],
-  },
-};
 
-// Tu componente aquí (sin el <Head>)
 
 interface Music {
     _id: string;
@@ -1011,6 +993,30 @@ export default function MusicAll() {
         fetchMusic();
     }, [user]);
 
+export const metadata: Metadata = {
+  title: 'MusicAll - Descubre Nueva Música | Zoonito Music',
+  description: 'Explora el mejor catálogo de música. Avances exclusivos, lo nuevo y lo más escuchado.',
+  openGraph: {
+    title: 'MusicAll - Descubre Nueva Música | Zoonito Music',
+    description: 'Explora el mejor catálogo de música',
+    images: ['/assets/zoonito.jpg'],
+    type: 'music.playlist',
+    siteName: 'Zoonito Music',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'MusicAll - Descubre Nueva Música',
+    description: 'Explora el mejor catálogo de música',
+    images: ['/assets/zoonito.jpg'],
+  },
+};
+
+// Tu componente aquí (sin el <Head>)
+
+
+
+
+  
     useEffect(() => {
         let filtered = [...musics];
 
@@ -1738,4 +1744,5 @@ ${music.playCount ? `🎧 ${formatLikes(music.playCount)} reproducciones\n` : ''
         </>
     );
 }
+
 
