@@ -1112,86 +1112,100 @@ export default function MusicAll() {
         }
     };
 
-    const shareMusic = async (music: Music) => {
-        if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-            console.error('Esta función solo funciona en el navegador');
-            return;
-        }
+//     const shareMusic = async (music: Music) => {
+//         if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+//             console.error('Esta función solo funciona en el navegador');
+//             return;
+//         }
 
-        const baseUrl = window.location.origin;
-        const shareUrl = `${baseUrl}/cancion/${music._id}`;
+//         const baseUrl = window.location.origin;
+//         const shareUrl = `${baseUrl}/cancion/${music._id}`;
         
-        const imageUrl = music.coverUrl || music.avatarArtist || music.cover;
-        const fullImageUrl = imageUrl?.startsWith('http') 
-            ? imageUrl 
-            : imageUrl 
-                ? `https://backend-zoonito-6x8h.vercel.app${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`
-                : `${baseUrl}/assets/zoonito.jpg`;
+//         const imageUrl = music.coverUrl || music.avatarArtist || music.cover;
+//         const fullImageUrl = imageUrl?.startsWith('http') 
+//             ? imageUrl 
+//             : imageUrl 
+//                 ? `https://backend-zoonito-6x8h.vercel.app${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`
+//                 : `${baseUrl}/assets/zoonito.jpg`;
 
-        const whatsappText = `🎵 *${music.title}*
-🎤 ${music.artist}
-${music.album ? `📀 ${music.album}\n` : ''}⭐ ${music.rating?.toFixed(1) || '0.0'}/5
-❤️ ${formatLikes(music.likes || 0)} likes
-${music.playCount ? `🎧 ${formatLikes(music.playCount)} reproducciones\n` : ''}
-🔗 Escúchalo aquí: ${shareUrl}`;
+//         const whatsappText = `🎵 *${music.title}*
+// 🎤 ${music.artist}
+// ${music.album ? `📀 ${music.album}\n` : ''}⭐ ${music.rating?.toFixed(1) || '0.0'}/5
+// ❤️ ${formatLikes(music.likes || 0)} likes
+// ${music.playCount ? `🎧 ${formatLikes(music.playCount)} reproducciones\n` : ''}
+// 🔗 Escúchalo aquí: ${shareUrl}`;
 
-        const whatsappWebUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(whatsappText)}`;
-        const whatsappMobileUrl = `whatsapp://send?text=${encodeURIComponent(whatsappText)}`;
+//         const whatsappWebUrl = `https://web.whatsapp.com/send?text=${encodeURIComponent(whatsappText)}`;
+//         const whatsappMobileUrl = `whatsapp://send?text=${encodeURIComponent(whatsappText)}`;
 
-        try {
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+//         try {
+//             const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-            if (navigator.share) {
-                const shareData = {
-                    title: `${music.title} - ${music.artist}`,
-                    text: `🎵 Escucha ${music.title} de ${music.artist} en Zoonito Music`,
-                    url: shareUrl
-                };
+//             if (navigator.share) {
+//                 const shareData = {
+//                     title: `${music.title} - ${music.artist}`,
+//                     text: `🎵 Escucha ${music.title} de ${music.artist} en Zoonito Music`,
+//                     url: shareUrl
+//                 };
 
-                if (navigator.canShare && navigator.canShare(shareData)) {
-                    try {
-                        await navigator.share(shareData);
-                        return;
-                    } catch (err) {
-                        if ((err as Error).name !== 'AbortError') {
-                            console.log('Web Share API cancelado, usando alternativa');
-                        }
-                    }
-                }
-            }
+//                 if (navigator.canShare && navigator.canShare(shareData)) {
+//                     try {
+//                         await navigator.share(shareData);
+//                         return;
+//                     } catch (err) {
+//                         if ((err as Error).name !== 'AbortError') {
+//                             console.log('Web Share API cancelado, usando alternativa');
+//                         }
+//                     }
+//                 }
+//             }
 
-            if (isMobile) {
-                window.location.href = whatsappMobileUrl;
-                setTimeout(() => {
-                    window.open(whatsappWebUrl, '_blank');
-                }, 1500);
-            } else {
-                window.open(whatsappWebUrl, '_blank');
-            }
+//             if (isMobile) {
+//                 window.location.href = whatsappMobileUrl;
+//                 setTimeout(() => {
+//                     window.open(whatsappWebUrl, '_blank');
+//                 }, 1500);
+//             } else {
+//                 window.open(whatsappWebUrl, '_blank');
+//             }
 
-        } catch (err) {
-            if ((err as Error).name !== 'AbortError') {
-                console.error('Error compartiendo:', err);
-                const { default: Swal } = await import('sweetalert2');
-                try {
-                    await navigator.clipboard.writeText(shareUrl);
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡Link copiado!',
-                        html: `<div class="text-left"><p>Link copiado al portapapeles:</p><br/><strong>${music.title}</strong><br/>${music.artist}<br/><a href="${shareUrl}" target="_blank" class="text-pink-400 text-xs break-all">${shareUrl}</a></div>`,
-                        background: '#1a1a2e',
-                        color: '#fff',
-                        confirmButtonColor: '#ec4899',
-                        timer: 4000,
-                        showConfirmButton: true,
-                        confirmButtonText: 'Entendido'
-                    });
-                } catch (clipErr) {
-                    console.error('Error al copiar:', clipErr);
-                }
-            }
-        }
-    };
+//         } catch (err) {
+//             if ((err as Error).name !== 'AbortError') {
+//                 console.error('Error compartiendo:', err);
+//                 const { default: Swal } = await import('sweetalert2');
+//                 try {
+//                     await navigator.clipboard.writeText(shareUrl);
+//                     Swal.fire({
+//                         icon: 'success',
+//                         title: '¡Link copiado!',
+//                         html: `<div class="text-left"><p>Link copiado al portapapeles:</p><br/><strong>${music.title}</strong><br/>${music.artist}<br/><a href="${shareUrl}" target="_blank" class="text-pink-400 text-xs break-all">${shareUrl}</a></div>`,
+//                         background: '#1a1a2e',
+//                         color: '#fff',
+//                         confirmButtonColor: '#ec4899',
+//                         timer: 4000,
+//                         showConfirmButton: true,
+//                         confirmButtonText: 'Entendido'
+//                     });
+//                 } catch (clipErr) {
+//                     console.error('Error al copiar:', clipErr);
+//                 }
+//             }
+//         }
+//     };
+
+
+
+    const shareMusic = (music: Music) => {
+  // Link al backend para que WhatsApp lea OG y Twitter Card
+  const shareUrl = `https://backend-zoonito-6x8h.vercel.app/api/share/${music._id}`;
+
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const url = isMobile
+    ? `whatsapp://send?text=${encodeURIComponent(shareUrl)}`
+    : `https://web.whatsapp.com/send?text=${encodeURIComponent(shareUrl)}`;
+
+  window.open(url, '_blank');
+};
 
     const addToPlaylist = (music: Music) => {
         const nueva: Cancion = {
@@ -1721,6 +1735,7 @@ ${music.playCount ? `🎧 ${formatLikes(music.playCount)} reproducciones\n` : ''
         </>
     );
 }
+
 
 
 
