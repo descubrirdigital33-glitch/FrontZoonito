@@ -1030,7 +1030,7 @@ export default function HomePage() {
                               )}
                             </div>
                           </div>
-
+{/* 
                           <div className="flex flex-wrap gap-2 md:gap-3 items-center">
                             <button
                               onClick={() => toggleLike(avanceMusics[avanceSlide]._id)}
@@ -1076,6 +1076,59 @@ export default function HomePage() {
                               </Link>
                             )} 
                               )} 
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div> */}
+
+
+                            <div className="flex flex-wrap gap-2 md:gap-3 items-center">
+                            <button
+                              onClick={() => toggleLike(avanceMusics[avanceSlide]._id)}
+                              className={`flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-full font-semibold text-sm md:text-base transition-all hover:scale-105 ${avanceMusics[avanceSlide].likedByUser
+                                ? 'bg-red-500 text-white'
+                                : 'bg-white/20 text-white hover:bg-white/30'
+                                }`}
+                            >
+                              <Heart className={`w-4 h-4 md:w-5 md:h-5 ${avanceMusics[avanceSlide].likedByUser ? 'fill-white' : ''}`} />
+                              {formatLikes(avanceMusics[avanceSlide].likes ?? 0)}
+                            </button>
+
+                            <button
+                              onClick={() => setShowRatingModal(avanceMusics[avanceSlide]._id)}
+                              className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-full bg-white/20 hover:bg-white/30 text-white font-semibold text-sm md:text-base transition-all hover:scale-105"
+                            >
+                              <Star className={`w-4 h-4 md:w-5 md:h-5 ${avanceMusics[avanceSlide].userRating ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                              {avanceMusics[avanceSlide].rating?.toFixed(1) ?? '0.0'}
+                            </button>
+
+                            <button
+                              onClick={() => downloadMusic(avanceMusics[avanceSlide])}
+                              className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-2 rounded-full bg-white/20 hover:bg-green-500 text-white font-semibold text-sm md:text-base transition-all hover:scale-105"
+                              title="Descargar canción"
+                            >
+                              <Download className="w-4 h-4 md:w-5 md:h-5" />
+                              <span className="hidden sm:inline">Descargar</span>
+                            </button>
+
+                            <button
+                              onClick={() => addToPlaylist(avanceMusics[avanceSlide])}
+                              className="px-3 md:px-6 py-2 rounded-full bg-pink-500 hover:bg-pink-600 text-white font-bold text-sm md:text-base transition-all hover:scale-105 shadow-lg"
+                            >
+                              <span className="hidden sm:inline">➕ </span>Añadir
+                            </button>
+
+                            {avanceMusics[avanceSlide].idMusico && (
+                            <Link
+                                href={`/fanpage/${avanceMusics[avanceSlide].idMusico}`}
+                                className="px-3 md:px-6 py-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold text-sm md:text-base shadow-lg hover:shadow-pink-400/50 transition-all duration-300 hover:scale-105 ring-1 ring-purple-400/30 hover:ring-pink-300/50"
+                              >
+                                Saber Más
+                              </Link>
+                            )}
                           </div>
                         </div>
                       </div>
