@@ -1,7 +1,7 @@
 // app/cancion/[id]/page.tsx
 import { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-
+// 🎵 Escucha
 export async function generateMetadata({ params }: { params: { _id: string } }): Promise<Metadata> {
   try {
     const music = await fetch(`https://backend-zoonito-6x8h.vercel.app/api/music/${params._id}`, {
@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: { _id: string } }):
 
     return {
       title: `${music.title} - ${music.artist} | Zoonito Music`,
-      description: `🎵 Escucha ${music.title} de ${music.artist}${music.album ? ` del álbum ${music.album}` : ''}`,
+      description: ` ESTA ES LA PARTE DEL BACKEND MAN ${music.title} de ${music.artist}${music.album ? ` del álbum ${music.album}` : ''}`,
       openGraph: {
         title: `${music.title} - ${music.artist}`,
         description: `⭐ ${music.rating?.toFixed(1) || '0.0'}/5 | ❤️ ${music.likes || 0} likes${music.playCount ? ` | 🎧 ${music.playCount} reproducciones` : ''}`,
@@ -65,4 +65,5 @@ export default async function CancionPage({ params }: { params: { _id: string } 
   } catch (error) {
     redirect('/musicall');
   }
+
 }
