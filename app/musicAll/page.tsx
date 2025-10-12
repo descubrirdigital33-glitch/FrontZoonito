@@ -1195,32 +1195,18 @@ export default function MusicAll() {
 
 
 
-//     const shareMusic = (music: Music) => {
-//   // Link al backend para que WhatsApp lea OG y Twitter Card
-//   const shareUrl = `https://backend-zoonito-6x8h.vercel.app/api/share/${music._id}`;
-
-//   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-//   const url = isMobile
-//     ? `whatsapp://send?text=${encodeURIComponent(shareUrl)}`
-//     : `https://web.whatsapp.com/send?text=${encodeURIComponent(shareUrl)}`;
-
-//   window.open(url, '_blank');
-// };
-
-
-const shareMusic = (music: Music) => {
-  console.log(music.album + ' esto es lo que es el front de la musica');
-  
-  // Solo enviar el link del backend
+    const shareMusic = (music: Music) => {
+  // Link al backend para que WhatsApp lea OG y Twitter Card
   const shareUrl = `https://backend-zoonito-6x8h.vercel.app/api/share/${music._id}`;
-  
+
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const url = isMobile
     ? `whatsapp://send?text=${encodeURIComponent(shareUrl)}`
     : `https://web.whatsapp.com/send?text=${encodeURIComponent(shareUrl)}`;
-  
+
   window.open(url, '_blank');
 };
+
 
 
 
@@ -1753,6 +1739,7 @@ const shareMusic = (music: Music) => {
         </>
     );
 }
+
 
 
 
