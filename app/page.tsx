@@ -1075,15 +1075,14 @@ export default function HomePage() {
                                 Saber Más
                               </Link>
                             )} */ */}
-
-                          {avanceMusics[avanceSlide].idMusico && (
-                                                <Link
-                                     href={`/fanpage/${avanceMusics[avanceSlide].idMusico}`}
-                                    className="px-3 md:px-6 py-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold text-sm md:text-base shadow-lg hover:shadow-pink-400/50 transition-all duration-300 hover:scale-105 ring-1 ring-purple-400/30 hover:ring-pink-300/50">
-                                  Saber Más
-                                 </Link>
-                                    )
-                                 } 
+                            {avanceMusics[avanceSlide].idMusico && (
+                              <Link
+                                href={`/fanpage/${avanceMusics[avanceSlide].artist.replace(/\s+/g, '-').toLowerCase()}`}
+                                className="px-3 md:px-6 py-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold text-sm md:text-base shadow-lg hover:shadow-pink-400/50 transition-all duration-300 hover:scale-105 ring-1 ring-purple-400/30 hover:ring-pink-300/50"
+                              >
+                                Saber Más
+                              </Link>
+                            )} 
                               )}   
                             )}
                           </div>
