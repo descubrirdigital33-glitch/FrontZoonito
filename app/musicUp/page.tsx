@@ -420,17 +420,29 @@ export default function MusicUp() {
     for (let i = 0; i < validTracks.length; i += MAX_SIMULTANEOUS) {
         const batch = validTracks.slice(i, i + MAX_SIMULTANEOUS);
 
-        await Promise.all(batch.map(async (track) => {
-            progress[track.id] = 0;
-            setUploadProgress({ ...progress });
+      await Promise.all(batch.map(async (track) => {
+    progress[track.id] = 0;
+    setUploadProgress({ ...progress });
 
-            try {
-                // 🔥 Subir primero a Cloudinary
-                const audioUrl = await uploadToCloudinary(track.audioFile, "video");
-                const coverUrl = track.coverFile ? await uploadToCloudinary(track.coverFile, "image") : "";
+    try {
+        // 🔥 Subir primero a Cloudinary
+        let audioUrl = "";
+        let coverUrl = "";
 
-                progress[track.id] = 70;
-                setUploadProgress({ ...progress });
+        if (track.audioFile) {
+            audioUrl = await uploadToCloudinary(track.audioFile, "video");
+        } else {
+            console.warn(`Track "${track.title}" no tiene archivo de audio`);
+            return; // o continuar con next track según tu lógica
+        }
+
+        if (track.coverFile) {
+            coverUrl = await uploadToCloudinary(track.coverFile, "image");
+        }
+
+        // Aquí ya tenés audioUrl y coverUrl seguros para enviar al backend
+        progress[track.id] = 70;
+        setUploadProgress({ ...progress });
 
                 // 🔥 Ahora enviamos los datos y URLs al backend (ligero)
                 const formData = new FormData();
@@ -1233,4 +1245,5 @@ export default function MusicUp() {
     );
 
 }
+
 
