@@ -1177,7 +1177,6 @@
 
 
 
-
 'use client';
 import { useState, useRef, ChangeEvent, DragEvent, useEffect, useContext } from 'react';
 import { X, Upload, Music, Image as ImageIcon, Plus, Trash2, Save, MoveUp, MoveDown, RefreshCw, Play, Pause, Edit } from 'lucide-react';
@@ -1343,6 +1342,10 @@ export default function MusicUp() {
                         </select>
                     </div>
                     <div>
+                        <label style="display: block; margin-bottom: 0.5rem; color: #fff;">Nueva Portada (opcional)</label>
+                        <input type="file" id="edit-cover" accept="image/*" class="swal2-input" style="width: 90%; margin: 0; padding: 0.5rem;">
+                    </div>
+                    <div>
                         <label style="display: flex; align-items: center; gap: 0.5rem; color: #fff;">
                             <input type="checkbox" id="edit-soloist" ${track.soloist ? 'checked' : ''}>
                             Es solista
@@ -1364,6 +1367,7 @@ export default function MusicUp() {
             confirmButtonText: 'Guardar',
             cancelButtonText: 'Cancelar',
             preConfirm: () => {
+                const coverInput = document.getElementById('edit-cover') as HTMLInputElement;
                 return {
                     title: (document.getElementById('edit-title') as HTMLInputElement).value,
                     artist: (document.getElementById('edit-artist') as HTMLInputElement).value,
@@ -1371,6 +1375,7 @@ export default function MusicUp() {
                     genre: (document.getElementById('edit-genre') as HTMLSelectElement).value,
                     soloist: (document.getElementById('edit-soloist') as HTMLInputElement).checked,
                     avance: (document.getElementById('edit-avance') as HTMLInputElement).checked,
+                    coverFile: coverInput?.files?.[0] || null,
                 };
             }
         });
@@ -1380,12 +1385,53 @@ export default function MusicUp() {
         }
     };
 
-    const updateSavedTrack = async (id: string, updates: Partial<SavedTrack>) => {
+    const updateSavedTrack = async (id: string, updates: any) => {
         try {
             const token = localStorage.getItem('token');
+            const CLOUD_NAME = "ddigfgmko";
+            const UPLOAD_PRESET = "music_unsigned";
 
             console.log('🔄 Actualizando track:', id);
-            console.log('📦 Updates a enviar:', JSON.stringify(updates, null, 2));
+            console.log('📦 Updates recibidos:', updates);
+
+            let coverUrl = updates.coverUrl;
+
+            // Si hay un nuevo archivo de portada, subirlo a Cloudinary
+            if (updates.coverFile) {
+                console.log('📤 Subiendo nueva portada a Cloudinary...');
+                const formData = new FormData();
+                formData.append("file", updates.coverFile);
+                formData.append("upload_preset", UPLOAD_PRESET);
+
+                const cloudinaryRes = await fetch(
+                    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+                    {
+                        method: "POST",
+                        body: formData,
+                    }
+                );
+
+                if (!cloudinaryRes.ok) {
+                    throw new Error("Error al subir imagen a Cloudinary");
+                }
+
+                const cloudinaryData = await cloudinaryRes.json();
+                coverUrl = cloudinaryData.secure_url;
+                console.log('✅ Portada subida:', coverUrl);
+            }
+
+            // Preparar el payload JSON (sin el archivo)
+            const payload = {
+                title: updates.title,
+                artist: updates.artist,
+                album: updates.album || "",
+                genre: updates.genre || "",
+                soloist: updates.soloist,
+                avance: updates.avance,
+                ...(coverUrl && { coverUrl })
+            };
+
+            console.log('📦 Payload JSON a enviar:', JSON.stringify(payload, null, 2));
 
             const response = await fetch(`${API_URL}/${id}`, {
                 method: 'PUT',
@@ -1394,7 +1440,7 @@ export default function MusicUp() {
                     'Accept': 'application/json',
                     ...(token && { Authorization: `Bearer ${token}` })
                 },
-                body: JSON.stringify(updates)
+                body: JSON.stringify(payload)
             });
 
             console.log('📡 Response status:', response.status);
@@ -2417,5 +2463,3 @@ export default function MusicUp() {
         </>
     );
 }
-
-
