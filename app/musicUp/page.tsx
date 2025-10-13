@@ -133,20 +133,26 @@ const updateSavedTrack = async (id: string, updates: Partial<SavedTrack>) => {
         const token = localStorage.getItem('token');
         
         console.log('🔄 Actualizando track:', id);
-        console.log('📦 Updates a enviar:', updates);
+        console.log('📦 Updates a enviar:', JSON.stringify(updates, null, 2));
         
         const response = await fetch(`${API_URL}/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
                 ...(token && { Authorization: `Bearer ${token}` })
             },
             body: JSON.stringify(updates)
         });
 
         console.log('📡 Response status:', response.status);
+        console.log('📡 Response headers:', {
+            contentType: response.headers.get('content-type'),
+            contentLength: response.headers.get('content-length')
+        });
+        
         const responseText = await response.text();
-        console.log('📡 Response body:', responseText);
+        console.log('📡 Response body (raw):', responseText);
 
         if (!response.ok) {
             let errorData;
@@ -158,7 +164,13 @@ const updateSavedTrack = async (id: string, updates: Partial<SavedTrack>) => {
             throw new Error(errorData.message || `Error al actualizar: ${response.statusText}`);
         }
 
-        const updatedTrack = JSON.parse(responseText);
+        let updatedTrack;
+        try {
+            updatedTrack = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('❌ Error parseando respuesta:', parseError);
+            throw new Error('Respuesta inválida del servidor');
+        }
         
         setSavedTracks(savedTracks.map(track => 
             track._id === id ? updatedTrack : track
@@ -187,7 +199,6 @@ const updateSavedTrack = async (id: string, updates: Partial<SavedTrack>) => {
         });
     }
 };
-    
     const createEmptyTrack = (): MusicTrack => ({
         id: `track-${Date.now()}-${Math.random()}`,
         title: '',
@@ -1161,6 +1172,7 @@ const updateSavedTrack = async (id: string, updates: Partial<SavedTrack>) => {
     );
 
 }
+
 
 
 
