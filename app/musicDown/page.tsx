@@ -132,63 +132,134 @@ export default function MusicDown() {
     };
 
     // 🔹 Actualizar con FormData
-    const handleUpdate = async (id: string) => {
-        try {
-            setUploading(true);
-            
-            const formDataToSend = new FormData();
-            
-            if (formData.title) formDataToSend.append("title", formData.title);
-            if (formData.artist) formDataToSend.append("artist", formData.artist);
-            if (formData.album) formDataToSend.append("album", formData.album);
-            if (formData.genre) formDataToSend.append("genre", formData.genre);
-            formDataToSend.append("soloist", String(formData.soloist || false));
+ const handleUpdate = async (id: string) => {
+    try {
+        setUploading(true);
+        
+        const CLOUD_NAME = "ddigfgmko";
+        const UPLOAD_PRESET = "music_unsigned";
+        
+        console.log('🔄 Iniciando actualización para ID:', id);
+        console.log('📦 Datos del formulario:', formData);
+        console.log('📸 Nueva portada:', newCoverFile);
 
-            if (newCoverFile) {
-                formDataToSend.append("coverFile", newCoverFile);
-            }
+        let coverUrl = formData.coverUrl; // URL actual
 
-            const res = await fetch(`https://backend-zoonito-6x8h.vercel.app/api/music/${id}`, {
-                method: "PUT",
-                body: formDataToSend,
-            });
+        // ✅ Si hay archivo nuevo, subirlo a Cloudinary
+        if (newCoverFile) {
+            console.log('📤 Subiendo portada a Cloudinary...');
+            const cloudinaryFormData = new FormData();
+            cloudinaryFormData.append("file", newCoverFile);
+            cloudinaryFormData.append("upload_preset", UPLOAD_PRESET);
 
-            if (res.ok) {
-                const updated = await res.json();
-                setMusicList((prev) =>
-                    prev.map((m) => (m._id === id ? updated : m))
+            try {
+                const cloudinaryRes = await fetch(
+                    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+                    {
+                        method: "POST",
+                        body: cloudinaryFormData,
+                    }
                 );
-                setEditing(null);
-                setNewCoverFile(null);
-                setPreviewCover(null);
-                
-                Swal.fire({
-                    icon: "success",
-                    title: "¡Actualizado!",
-                    text: "La música se actualizó correctamente",
-                    timer: 2000,
-                    showConfirmButton: false,
-                    background: "#1a1a2e",
-                    color: "#fff",
-                });
-            } else {
-                throw new Error("Error en la respuesta del servidor");
+
+                if (!cloudinaryRes.ok) {
+                    const errorData = await cloudinaryRes.json();
+                    console.error('❌ Error Cloudinary:', errorData);
+                    throw new Error(`Error en Cloudinary: ${errorData.error?.message || 'Desconocido'}`);
+                }
+
+                const cloudinaryData = await cloudinaryRes.json();
+                coverUrl = cloudinaryData.secure_url;
+                console.log('✅ Portada subida a Cloudinary:', coverUrl);
+            } catch (cloudinaryError) {
+                console.error('❌ Error subiendo a Cloudinary:', cloudinaryError);
+                throw cloudinaryError;
             }
-        } catch (err) {
-            console.error("Error actualizando música:", err);
+        }
+
+        // ✅ Preparar payload JSON para el backend
+        const payload = {
+            title: formData.title,
+            artist: formData.artist,
+            album: formData.album || "",
+            genre: formData.genre || "",
+            soloist: formData.soloist || false,
+            ...(coverUrl && { coverUrl }) // Solo incluir si existe
+        };
+
+        console.log('📦 Payload a enviar:', JSON.stringify(payload, null, 2));
+
+        // ✅ Enviar al backend como JSON
+        const res = await fetch(`https://backend-zoonito-6x8h.vercel.app/api/music/${id}`, {
+            method: "PUT",
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        console.log('📨 Status respuesta:', res.status, res.statusText);
+
+        // ✅ Obtener respuesta como texto primero
+        const responseText = await res.text();
+        console.log('📨 Response (texto):', responseText);
+
+        if (res.ok) {
+            let updated: Music;
+            try {
+                updated = JSON.parse(responseText);
+                console.log('✅ Respuesta parseada:', updated);
+            } catch (parseError) {
+                console.error('❌ Error parseando respuesta:', parseError);
+                throw new Error(`No se pudo parsear la respuesta: ${responseText}`);
+            }
+
+            setMusicList((prev) =>
+                prev.map((m) => (m._id === id ? updated : m))
+            );
+            setEditing(null);
+            setNewCoverFile(null);
+            setPreviewCover(null);
+            
             Swal.fire({
-                icon: "error",
-                title: "Error",
-                text: "No se pudo actualizar la música",
+                icon: "success",
+                title: "¡Actualizado!",
+                text: "La música se actualizó correctamente",
+                timer: 2000,
+                showConfirmButton: false,
                 background: "#1a1a2e",
                 color: "#fff",
-                confirmButtonColor: "#6366f1",
             });
-        } finally {
-            setUploading(false);
-        }
-    };
+        } else {
+            console.error('❌ Error en respuesta del servidor');
+            console.error('Status:', res.status);
+            console.error('Response text:', responseText);
 
+            let errorMessage = "Error actualizando música";
+            try {
+                const errorData = JSON.parse(responseText);
+                errorMessage = errorData.message || errorMessage;
+            } catch {
+                errorMessage = responseText || errorMessage;
+            }
+
+            throw new Error(errorMessage);
+        }
+    } catch (err) {
+        console.error('❌ Error en handleUpdate:', err);
+        
+        Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: err instanceof Error ? err.message : "No se pudo actualizar la música",
+            background: "#1a1a2e",
+            color: "#fff",
+            confirmButtonColor: "#6366f1",
+        });
+    } finally {
+        setUploading(false);
+    }
+};
     const handleCancelEdit = () => {
         setEditing(null);
         setNewCoverFile(null);
@@ -406,3 +477,4 @@ export default function MusicDown() {
     );
 
 }
+
