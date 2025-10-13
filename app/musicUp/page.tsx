@@ -1179,7 +1179,7 @@
 
 'use client';
 import { useState, useRef, ChangeEvent, DragEvent, useEffect, useContext } from 'react';
-import { X, Upload, Music, Image as ImageIcon, Plus, Trash2, Save, MoveUp, MoveDown, RefreshCw, Play, Pause, Edit } from 'lucide-react';
+import { X, Upload, Music, Plus, Trash2, Save, MoveUp, MoveDown, RefreshCw, Edit } from 'lucide-react';
 import MusicDown from "../musicDown/page";
 import { UserContext } from "../context/UserContext";
 import { useRouter } from 'next/navigation';
@@ -1226,7 +1226,6 @@ export default function MusicUp() {
     const [uploadProgress, setUploadProgress] = useState<UploadProgress>({});
     const [dragActive, setDragActive] = useState<boolean>(false);
     const [activeTab, setActiveTab] = useState<'upload' | 'library'>('upload');
-    const [editingTrack, setEditingTrack] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { user } = useContext(UserContext);
 
@@ -1234,12 +1233,6 @@ export default function MusicUp() {
     const MAX_SIMULTANEOUS = 3;
     const API_URL = 'https://backend-zoonito-6x8h.vercel.app/api/music';
     const router = useRouter();
-
-    useEffect(() => {
-        if (activeTab === 'library') {
-            fetchSavedTracks();
-        }
-    }, [activeTab]);
 
     const fetchSavedTracks = async () => {
         setIsLoading(true);
@@ -1263,6 +1256,12 @@ export default function MusicUp() {
             setIsLoading(false);
         }
     };
+
+    useEffect(() => {
+        if (activeTab === 'library') {
+            fetchSavedTracks();
+        }
+    }, [activeTab]);
 
     const deleteSavedTrack = async (id: string) => {
         const result = await Swal.fire({
@@ -1396,8 +1395,8 @@ export default function MusicUp() {
 
             let coverUrl = updates.coverUrl;
 
-            // Si hay un nuevo archivo de portada, subirlo a Cloudinary
-            if (updates.coverFile) {
+            // SOLUCIÓN: Subir imagen a Cloudinary ANTES de enviar al backend
+            if (updates.coverFile && updates.coverFile instanceof File) {
                 console.log('📤 Subiendo nueva portada a Cloudinary...');
                 const formData = new FormData();
                 formData.append("file", updates.coverFile);
@@ -1412,15 +1411,16 @@ export default function MusicUp() {
                 );
 
                 if (!cloudinaryRes.ok) {
-                    throw new Error("Error al subir imagen a Cloudinary");
+                    const errorData = await cloudinaryRes.json();
+                    throw new Error(`Error al subir imagen a Cloudinary: ${errorData.error?.message || 'Unknown error'}`);
                 }
 
                 const cloudinaryData = await cloudinaryRes.json();
                 coverUrl = cloudinaryData.secure_url;
-                console.log('✅ Portada subida:', coverUrl);
+                console.log('✅ Portada subida exitosamente:', coverUrl);
             }
 
-            // Preparar el payload JSON (sin el archivo)
+            // Preparar el payload JSON (sin archivos, solo URLs)
             const payload = {
                 title: updates.title,
                 artist: updates.artist,
@@ -1433,6 +1433,7 @@ export default function MusicUp() {
 
             console.log('📦 Payload JSON a enviar:', JSON.stringify(payload, null, 2));
 
+            // Enviar solo JSON al backend
             const response = await fetch(`${API_URL}/${id}`, {
                 method: 'PUT',
                 headers: {
@@ -1763,6 +1764,7 @@ export default function MusicUp() {
                 <div className="absolute inset-0 bg-black/50 z-0"></div>
                 <div className="relative z-10 max-w-7xl mx-auto">
                     <div className="relative w-full h-screen flex items-center justify-center overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src="/assets/cantando.jpg"
                             alt="Imagen de banda o CD"
@@ -1837,6 +1839,7 @@ export default function MusicUp() {
                                                     <div className="flex-shrink-0">
                                                         <div className="cover-upload-box">
                                                             {track.coverPreview ? (
+                                                                /* eslint-disable-next-line @next/next/no-img-element */
                                                                 <img
                                                                     src={track.coverPreview}
                                                                     alt="Cover"
@@ -1844,6 +1847,7 @@ export default function MusicUp() {
                                                                 />
                                                             ) : (
                                                                 <div className="cover-placeholder">
+                                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                                                     <img
                                                                         src='./assets/zoonito.jpg'
                                                                         alt="Cover"
@@ -2085,6 +2089,7 @@ export default function MusicUp() {
                                         <div key={track._id} className="library-card">
                                             <div className="library-card-cover">
                                                 {track.coverUrl ? (
+                                                    /* eslint-disable-next-line @next/next/no-img-element */
                                                     <img src={track.coverUrl} alt={track.title} />
                                                 ) : (
                                                     <div className="library-card-placeholder">
