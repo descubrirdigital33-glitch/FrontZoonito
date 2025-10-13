@@ -1180,6 +1180,7 @@
 'use client';
 import { useState, useRef, ChangeEvent, DragEvent, useEffect, useContext } from 'react';
 import { X, Upload, Music, Plus, Trash2, Save, MoveUp, MoveDown, RefreshCw, Edit } from 'lucide-react';
+import Image from 'next/image';
 import MusicDown from "../musicDown/page";
 import { UserContext } from "../context/UserContext";
 import { useRouter } from 'next/navigation';
@@ -1218,6 +1219,17 @@ interface UploadProgress {
     [key: string]: number;
 }
 
+interface TrackUpdateData {
+    title: string;
+    artist: string;
+    album: string;
+    genre: string;
+    soloist: boolean;
+    avance: boolean;
+    coverFile: File | null;
+    coverUrl?: string;
+}
+
 export default function MusicUp() {
     const [tracks, setTracks] = useState<MusicTrack[]>([]);
     const [savedTracks, setSavedTracks] = useState<SavedTrack[]>([]);
@@ -1225,7 +1237,6 @@ export default function MusicUp() {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [uploadProgress, setUploadProgress] = useState<UploadProgress>({});
     const [dragActive, setDragActive] = useState<boolean>(false);
-    const [activeTab, setActiveTab] = useState<'upload' | 'library'>('upload');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { user } = useContext(UserContext);
 
@@ -1258,10 +1269,8 @@ export default function MusicUp() {
     };
 
     useEffect(() => {
-        if (activeTab === 'library') {
-            fetchSavedTracks();
-        }
-    }, [activeTab]);
+        fetchSavedTracks();
+    }, []);
 
     const deleteSavedTrack = async (id: string) => {
         const result = await Swal.fire({
@@ -1384,7 +1393,7 @@ export default function MusicUp() {
         }
     };
 
-    const updateSavedTrack = async (id: string, updates: any) => {
+    const updateSavedTrack = async (id: string, updates: TrackUpdateData) => {
         try {
             const token = localStorage.getItem('token');
             const CLOUD_NAME = "ddigfgmko";
@@ -1395,7 +1404,6 @@ export default function MusicUp() {
 
             let coverUrl = updates.coverUrl;
 
-            // SOLUCIÓN: Subir imagen a Cloudinary ANTES de enviar al backend
             if (updates.coverFile && updates.coverFile instanceof File) {
                 console.log('📤 Subiendo nueva portada a Cloudinary...');
                 const formData = new FormData();
@@ -1420,7 +1428,6 @@ export default function MusicUp() {
                 console.log('✅ Portada subida exitosamente:', coverUrl);
             }
 
-            // Preparar el payload JSON (sin archivos, solo URLs)
             const payload = {
                 title: updates.title,
                 artist: updates.artist,
@@ -1433,7 +1440,6 @@ export default function MusicUp() {
 
             console.log('📦 Payload JSON a enviar:', JSON.stringify(payload, null, 2));
 
-            // Enviar solo JSON al backend
             const response = await fetch(`${API_URL}/${id}`, {
                 method: 'PUT',
                 headers: {
@@ -1448,7 +1454,7 @@ export default function MusicUp() {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                let errorData;
+                let errorData: { message?: string };
                 try {
                     errorData = JSON.parse(errorText);
                 } catch {
@@ -1460,7 +1466,7 @@ export default function MusicUp() {
             const responseText = await response.text();
             console.log('📡 Response body (raw):', responseText);
 
-            let updatedTrack;
+            let updatedTrack: SavedTrack;
             try {
                 updatedTrack = JSON.parse(responseText);
             } catch (parseError) {
@@ -1752,9 +1758,7 @@ export default function MusicUp() {
                 });
             }
 
-            if (activeTab === "library") {
-                fetchSavedTracks();
-            }
+            fetchSavedTracks();
         }, 1000);
     };
 
@@ -1764,11 +1768,12 @@ export default function MusicUp() {
                 <div className="absolute inset-0 bg-black/50 z-0"></div>
                 <div className="relative z-10 max-w-7xl mx-auto">
                     <div className="relative w-full h-screen flex items-center justify-center overflow-hidden">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <Image
                             src="/assets/cantando.jpg"
                             alt="Imagen de banda o CD"
-                            className="absolute inset-0 w-full h-full object-cover"
+                            fill
+                            className="object-cover"
+                            priority
                         />
                         <div className="relative z-10 text-center px-6 md:px-12">
                             <h1 className="text-5xl md:text-6xl font-extrabold text-white drop-shadow-lg mb-6">
@@ -1801,346 +1806,346 @@ export default function MusicUp() {
 
                     <MusicDown />
 
-                    {activeTab === 'upload' && (
-                        <>
-                            {tracks.length === 0 && (
-                                <div
-                                    className={`glass-card p-12 mb-6 border-2 border-dashed transition-all ${dragActive ? 'border-pink-500 bg-pink-500/10' : 'border-white/20'}`}
-                                    onDragEnter={handleDrag}
-                                    onDragLeave={handleDrag}
-                                    onDragOver={handleDrag}
-                                    onDrop={handleDrop}
+                    {tracks.length === 0 && (
+                        <div
+                            className={`glass-card p-12 mb-6 border-2 border-dashed transition-all ${dragActive ? 'border-pink-500 bg-pink-500/10' : 'border-white/20'}`}
+                            onDragEnter={handleDrag}
+                            onDragLeave={handleDrag}
+                            onDragOver={handleDrag}
+                            onDrop={handleDrop}
+                        >
+                            <div className="text-center">
+                                <Upload className="w-16 h-16 mx-auto mb-4 text-pink-500" />
+                                <h3 className="text-xl font-bold glow-text mb-2">
+                                    Arrastra archivos aquí
+                                </h3>
+                                <p className="text-sm glow-secondary mb-4">
+                                    o haz clic en el botón para seleccionar
+                                </p>
+                                <button
+                                    onClick={addTrack}
+                                    className="btn-glass btn-primary inline-flex items-center gap-2"
                                 >
-                                    <div className="text-center">
-                                        <Upload className="w-16 h-16 mx-auto mb-4 text-pink-500" />
-                                        <h3 className="text-xl font-bold glow-text mb-2">
-                                            Arrastra archivos aquí
-                                        </h3>
-                                        <p className="text-sm glow-secondary mb-4">
-                                            o haz clic en el botón para seleccionar
-                                        </p>
-                                        <button
-                                            onClick={addTrack}
-                                            className="btn-glass btn-primary inline-flex items-center gap-2"
-                                        >
-                                            <Plus className="w-5 h-5" />
-                                            Agregar Canción
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
+                                    <Plus className="w-5 h-5" />
+                                    Agregar Canción
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
-                            {tracks.length > 0 && (
-                                <>
-                                    <div className="space-y-4 mb-6 min-h-[200px]">
-                                        {tracks.map((track, index) => (
-                                            <div key={track.id} className="glass-card p-6 min-h-[300px]">
-                                                <div className="flex gap-6">
-                                                    <div className="flex-shrink-0">
-                                                        <div className="cover-upload-box">
-                                                            {track.coverPreview ? (
-                                                                /* eslint-disable-next-line @next/next/no-img-element */
-                                                                <img
-                                                                    src={track.coverPreview}
-                                                                    alt="Cover"
-                                                                    className="cover-image"
-                                                                />
-                                                            ) : (
-                                                                <div className="cover-placeholder">
-                                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                    <img
-                                                                        src='./assets/zoonito.jpg'
-                                                                        alt="Cover"
-                                                                        className="cover-image"
-                                                                    />
-                                                                    <p className="text-xs mt-2">Portada</p>
-                                                                </div>
-                                                            )}
-                                                            <input
-                                                                type="file"
-                                                                accept="image/*"
-                                                                onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                                                                    const file = e.target.files?.[0];
-                                                                    if (file) handleCoverUpload(track.id, file);
-                                                                }}
-                                                                className="cover-input"
+                    {tracks.length > 0 && (
+                        <>
+                            <div className="space-y-4 mb-6 min-h-[200px]">
+                                {tracks.map((track, index) => (
+                                    <div key={track.id} className="glass-card p-6 min-h-[300px]">
+                                        <div className="flex gap-6">
+                                            <div className="flex-shrink-0">
+                                                <div className="cover-upload-box">
+                                                    {track.coverPreview ? (
+                                                        <Image
+                                                            src={track.coverPreview}
+                                                            alt="Cover"
+                                                            width={140}
+                                                            height={140}
+                                                            className="cover-image"
+                                                        />
+                                                    ) : (
+                                                        <div className="cover-placeholder">
+                                                            <Image
+                                                                src='/assets/zoonito.jpg'
+                                                                alt="Cover"
+                                                                width={140}
+                                                                height={140}
+                                                                className="cover-image"
                                                             />
+                                                            <p className="text-xs mt-2">Portada</p>
                                                         </div>
-                                                    </div>
-
-                                                    <div className="flex-1 space-y-4">
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                            <div>
-                                                                <label className="form-label">Título *</label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={track.title}
-                                                                    onChange={(e) => updateTrack(track.id, 'title', e.target.value)}
-                                                                    className="form-input"
-                                                                    placeholder="Nombre de la canción"
-                                                                    disabled={isUploading}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="form-label">Artista *</label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={track.artist}
-                                                                    onChange={(e) => updateTrack(track.id, 'artist', e.target.value)}
-                                                                    className="form-input"
-                                                                    placeholder="Nombre del artista"
-                                                                    disabled={isUploading}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="form-label">Álbum</label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={track.album}
-                                                                    onChange={(e) => updateTrack(track.id, 'album', e.target.value)}
-                                                                    className="form-input"
-                                                                    placeholder="Nombre del álbum"
-                                                                    disabled={isUploading}
-                                                                />
-                                                            </div>
-                                                            <div>
-                                                                <label className="form-label">Género</label>
-                                                                <select
-                                                                    value={track.genre}
-                                                                    onChange={(e) => updateTrack(track.id, 'genre', e.target.value)}
-                                                                    className="form-input select-dark"
-                                                                    disabled={isUploading}
-                                                                >
-                                                                    <option value="">Seleccionar género</option>
-                                                                    <option value="Rock">Rock</option>
-                                                                    <option value="efects">Efects Sound</option>
-                                                                    <option value="Pop">Pop</option>
-                                                                    <option value="Jazz">Jazz</option>
-                                                                    <option value="Classical">Clásica</option>
-                                                                    <option value="Electronic">Electrónica</option>
-                                                                    <option value="Hip-Hop">Hip-Hop</option>
-                                                                    <option value="Folkclore">Folkclore</option>
-                                                                    <option value="Reggae">Reggae</option>
-                                                                </select>
-                                                            </div>
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="form-label">Archivo de Audio/Video *</label>
-                                                            <div className="audio-upload-box">
-                                                                {track.audioName ? (
-                                                                    <div className="flex items-center gap-3">
-                                                                        <Music className="w-5 h-5 text-pink-500" />
-                                                                        <span className="text-sm flex-1 truncate">{track.audioName}</span>
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="text-sm text-white/50">Sin archivo</span>
-                                                                )}
-                                                                <input
-                                                                    type="file"
-                                                                    accept="audio/*,video/*"
-                                                                    onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                                                                        const file = e.target.files?.[0];
-                                                                        if (file) handleAudioUpload(track.id, file);
-                                                                    }}
-                                                                    className="audio-input"
-                                                                    disabled={isUploading}
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        <label className="flex items-center gap-2 cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={track.soloist}
-                                                                onChange={(e) => updateTrack(track.id, 'soloist', e.target.checked)}
-                                                                className="checkbox-input"
-                                                                disabled={isUploading}
-                                                            />
-                                                            <span className="text-sm glow-secondary">Es solista</span>
-                                                        </label>
-
-                                                        <label className="flex items-center gap-2 cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={track.avance}
-                                                                onChange={(e) => updateTrack(track.id, 'avance', e.target.checked)}
-                                                                className="checkbox-input"
-                                                                disabled={isUploading}
-                                                            />
-                                                            <span className="text-sm glow-secondary">Es avance</span>
-                                                        </label>
-
-                                                        {uploadProgress[track.id] !== undefined && (
-                                                            <div className="progress-bar-container">
-                                                                <div
-                                                                    className="progress-bar-fill"
-                                                                    style={{ width: `${uploadProgress[track.id]}%` }}
-                                                                />
-                                                                <span className="progress-text">
-                                                                    {uploadProgress[track.id] === -1 ? 'Error' : `${uploadProgress[track.id]}%`}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="flex flex-col gap-2">
-                                                        <button
-                                                            onClick={() => moveTrack(index, 'up')}
-                                                            disabled={index === 0 || isUploading}
-                                                            className="icon-btn"
-                                                            title="Mover arriba"
-                                                        >
-                                                            <MoveUp className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => moveTrack(index, 'down')}
-                                                            disabled={index === tracks.length - 1 || isUploading}
-                                                            className="icon-btn"
-                                                            title="Mover abajo"
-                                                        >
-                                                            <MoveDown className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => removeTrack(track.id)}
-                                                            disabled={isUploading}
-                                                            className="icon-btn icon-btn-danger"
-                                                            title="Eliminar"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
+                                                    )}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) handleCoverUpload(track.id, file);
+                                                        }}
+                                                        className="cover-input"
+                                                    />
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
 
-                                    <div className="glass-card p-6 flex flex-wrap gap-4 justify-between items-center">
-                                        <button
-                                            onClick={addTrack}
-                                            disabled={tracks.length >= MAX_TRACKS || isUploading}
-                                            className="btn-glass btn-secondary inline-flex items-center gap-2"
-                                        >
-                                            <Plus className="w-5 h-5" />
-                                            Agregar Otra Canción
-                                        </button>
+                                            <div className="flex-1 space-y-4">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="form-label">Título *</label>
+                                                        <input
+                                                            type="text"
+                                                            value={track.title}
+                                                            onChange={(e) => updateTrack(track.id, 'title', e.target.value)}
+                                                            className="form-input"
+                                                            placeholder="Nombre de la canción"
+                                                            disabled={isUploading}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="form-label">Artista *</label>
+                                                        <input
+                                                            type="text"
+                                                            value={track.artist}
+                                                            onChange={(e) => updateTrack(track.id, 'artist', e.target.value)}
+                                                            className="form-input"
+                                                            placeholder="Nombre del artista"
+                                                            disabled={isUploading}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="form-label">Álbum</label>
+                                                        <input
+                                                            type="text"
+                                                            value={track.album}
+                                                            onChange={(e) => updateTrack(track.id, 'album', e.target.value)}
+                                                            className="form-input"
+                                                            placeholder="Nombre del álbum"
+                                                            disabled={isUploading}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="form-label">Género</label>
+                                                        <select
+                                                            value={track.genre}
+                                                            onChange={(e) => updateTrack(track.id, 'genre', e.target.value)}
+                                                            className="form-input select-dark"
+                                                            disabled={isUploading}
+                                                        >
+                                                            <option value="">Seleccionar género</option>
+                                                            <option value="Rock">Rock</option>
+                                                            <option value="efects">Efects Sound</option>
+                                                            <option value="Pop">Pop</option>
+                                                            <option value="Jazz">Jazz</option>
+                                                            <option value="Classical">Clásica</option>
+                                                            <option value="Electronic">Electrónica</option>
+                                                            <option value="Hip-Hop">Hip-Hop</option>
+                                                            <option value="Folkclore">Folkclore</option>
+                                                            <option value="Reggae">Reggae</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
 
-                                        <div className="flex gap-4">
-                                            <button
-                                                onClick={() => setTracks([])}
-                                                disabled={isUploading}
-                                                className="btn-glass inline-flex items-center gap-2"
-                                            >
-                                                <X className="w-5 h-5" />
-                                                Limpiar Todo
-                                            </button>
-                                            <button
-                                                onClick={uploadTracks}
-                                                disabled={isUploading || tracks.length === 0}
-                                                className="btn-glass btn-primary inline-flex items-center gap-2"
-                                            >
-                                                {isUploading ? (
-                                                    <>
-                                                        <span className="loading-spinner"></span>
-                                                        Subiendo...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Save className="w-5 h-5" />
-                                                        Subir {tracks.length} Canción{tracks.length !== 1 ? 'es' : ''}
-                                                    </>
+                                                <div>
+                                                    <label className="form-label">Archivo de Audio/Video *</label>
+                                                    <div className="audio-upload-box">
+                                                        {track.audioName ? (
+                                                            <div className="flex items-center gap-3">
+                                                                <Music className="w-5 h-5 text-pink-500" />
+                                                                <span className="text-sm flex-1 truncate">{track.audioName}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-sm text-white/50">Sin archivo</span>
+                                                        )}
+                                                        <input
+                                                            type="file"
+                                                            accept="audio/*,video/*"
+                                                            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (file) handleAudioUpload(track.id, file);
+                                                            }}
+                                                            className="audio-input"
+                                                            disabled={isUploading}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={track.soloist}
+                                                        onChange={(e) => updateTrack(track.id, 'soloist', e.target.checked)}
+                                                        className="checkbox-input"
+                                                        disabled={isUploading}
+                                                    />
+                                                    <span className="text-sm glow-secondary">Es solista</span>
+                                                </label>
+
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={track.avance}
+                                                        onChange={(e) => updateTrack(track.id, 'avance', e.target.checked)}
+                                                        className="checkbox-input"
+                                                        disabled={isUploading}
+                                                    />
+                                                    <span className="text-sm glow-secondary">Es avance</span>
+                                                </label>
+
+                                                {uploadProgress[track.id] !== undefined && (
+                                                    <div className="progress-bar-container">
+                                                        <div
+                                                            className="progress-bar-fill"
+                                                            style={{ width: `${uploadProgress[track.id]}%` }}
+                                                        />
+                                                        <span className="progress-text">
+                                                            {uploadProgress[track.id] === -1 ? 'Error' : `${uploadProgress[track.id]}%`}
+                                                        </span>
+                                                    </div>
                                                 )}
-                                            </button>
+                                            </div>
+
+                                            <div className="flex flex-col gap-2">
+                                                <button
+                                                    onClick={() => moveTrack(index, 'up')}
+                                                    disabled={index === 0 || isUploading}
+                                                    className="icon-btn"
+                                                    title="Mover arriba"
+                                                >
+                                                    <MoveUp className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => moveTrack(index, 'down')}
+                                                    disabled={index === tracks.length - 1 || isUploading}
+                                                    className="icon-btn"
+                                                    title="Mover abajo"
+                                                >
+                                                    <MoveDown className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => removeTrack(track.id)}
+                                                    disabled={isUploading}
+                                                    className="icon-btn icon-btn-danger"
+                                                    title="Eliminar"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </>
-                            )}
+                                ))}
+                            </div>
+
+                            <div className="glass-card p-6 flex flex-wrap gap-4 justify-between items-center">
+                                <button
+                                    onClick={addTrack}
+                                    disabled={tracks.length >= MAX_TRACKS || isUploading}
+                                    className="btn-glass btn-secondary inline-flex items-center gap-2"
+                                >
+                                    <Plus className="w-5 h-5" />
+                                    Agregar Otra Canción
+                                </button>
+
+                                <div className="flex gap-4">
+                                    <button
+                                        onClick={() => setTracks([])}
+                                        disabled={isUploading}
+                                        className="btn-glass inline-flex items-center gap-2"
+                                    >
+                                        <X className="w-5 h-5" />
+                                        Limpiar Todo
+                                    </button>
+                                    <button
+                                        onClick={uploadTracks}
+                                        disabled={isUploading || tracks.length === 0}
+                                        className="btn-glass btn-primary inline-flex items-center gap-2"
+                                    >
+                                        {isUploading ? (
+                                            <>
+                                                <span className="loading-spinner"></span>
+                                                Subiendo...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="w-5 h-5" />
+                                                Subir {tracks.length} Canción{tracks.length !== 1 ? 'es' : ''}
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
                         </>
                     )}
 
-                    {activeTab === 'library' && (
-                        <div className="glass-card p-6">
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-2xl font-bold glow-text">Biblioteca Musical</h2>
-                                <button
-                                    onClick={fetchSavedTracks}
-                                    disabled={isLoading}
-                                    className="btn-glass inline-flex items-center gap-2"
-                                >
-                                    <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                                    Actualizar
-                                </button>
-                            </div>
+                    <div className="glass-card p-6">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-2xl font-bold glow-text">Biblioteca Musical</h2>
+                            <button
+                                onClick={fetchSavedTracks}
+                                disabled={isLoading}
+                                className="btn-glass inline-flex items-center gap-2"
+                            >
+                                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                                Actualizar
+                            </button>
+                        </div>
 
-                            {isLoading ? (
-                                <div className="text-center py-12">
-                                    <div className="loading-spinner mx-auto mb-4" style={{ width: '48px', height: '48px' }}></div>
-                                    <p className="glow-secondary">Cargando biblioteca...</p>
-                                </div>
-                            ) : savedTracks.length === 0 ? (
-                                <div className="text-center py-12">
-                                    <Music className="w-16 h-16 mx-auto mb-4 text-white/20" />
-                                    <p className="glow-secondary text-lg">No hay canciones guardadas</p>
-                                    <p className="text-sm text-white/30 mt-2">Sube tu primera canción para comenzar</p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {savedTracks.map((track) => (
-                                        <div key={track._id} className="library-card">
-                                            <div className="library-card-cover">
-                                                {track.coverUrl ? (
-                                                    /* eslint-disable-next-line @next/next/no-img-element */
-                                                    <img src={track.coverUrl} alt={track.title} />
-                                                ) : (
-                                                    <div className="library-card-placeholder">
-                                                        <Music className="w-12 h-12 text-white/30" />
-                                                    </div>
+                        {isLoading ? (
+                            <div className="text-center py-12">
+                                <div className="loading-spinner mx-auto mb-4" style={{ width: '48px', height: '48px' }}></div>
+                                <p className="glow-secondary">Cargando biblioteca...</p>
+                            </div>
+                        ) : savedTracks.length === 0 ? (
+                            <div className="text-center py-12">
+                                <Music className="w-16 h-16 mx-auto mb-4 text-white/20" />
+                                <p className="glow-secondary text-lg">No hay canciones guardadas</p>
+                                <p className="text-sm text-white/30 mt-2">Sube tu primera canción para comenzar</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {savedTracks.map((track) => (
+                                    <div key={track._id} className="library-card">
+                                        <div className="library-card-cover">
+                                            {track.coverUrl ? (
+                                                <Image 
+                                                    src={track.coverUrl} 
+                                                    alt={track.title}
+                                                    fill
+                                                    className="object-cover"
+                                                />
+                                            ) : (
+                                                <div className="library-card-placeholder">
+                                                    <Music className="w-12 h-12 text-white/30" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="library-card-content">
+                                            <h3 className="library-card-title">{track.title}</h3>
+                                            <p className="library-card-artist">{track.artist}</p>
+                                            {track.album && (
+                                                <p className="library-card-album">{track.album}</p>
+                                            )}
+                                            <div className="library-card-meta">
+                                                {track.genre && (
+                                                    <span className="library-card-badge">{track.genre}</span>
+                                                )}
+                                                {track.soloist && (
+                                                    <span className="library-card-badge">Solista</span>
+                                                )}
+                                                {track.avance && (
+                                                    <span className="library-card-badge">Avance</span>
                                                 )}
                                             </div>
-                                            <div className="library-card-content">
-                                                <h3 className="library-card-title">{track.title}</h3>
-                                                <p className="library-card-artist">{track.artist}</p>
-                                                {track.album && (
-                                                    <p className="library-card-album">{track.album}</p>
-                                                )}
-                                                <div className="library-card-meta">
-                                                    {track.genre && (
-                                                        <span className="library-card-badge">{track.genre}</span>
-                                                    )}
-                                                    {track.soloist && (
-                                                        <span className="library-card-badge">Solista</span>
-                                                    )}
-                                                    {track.avance && (
-                                                        <span className="library-card-badge">Avance</span>
-                                                    )}
-                                                </div>
-                                                <div className="library-card-stats">
-                                                    <span>❤️ {track.likes}</span>
-                                                    <span>⭐ {track.rating.toFixed(1)}</span>
-                                                </div>
-                                                <div className="library-card-actions">
-                                                    <button
-                                                        onClick={() => editSavedTrack(track)}
-                                                        className="library-card-edit"
-                                                        title="Editar"
-                                                    >
-                                                        <Edit className="w-4 h-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => deleteSavedTrack(track._id)}
-                                                        className="library-card-delete"
-                                                        title="Eliminar"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
+                                            <div className="library-card-stats">
+                                                <span>❤️ {track.likes}</span>
+                                                <span>⭐ {track.rating.toFixed(1)}</span>
+                                            </div>
+                                            <div className="library-card-actions">
+                                                <button
+                                                    onClick={() => editSavedTrack(track)}
+                                                    className="library-card-edit"
+                                                    title="Editar"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteSavedTrack(track._id)}
+                                                    className="library-card-delete"
+                                                    title="Eliminar"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <style jsx>{`
@@ -2164,15 +2169,6 @@ export default function MusicUp() {
           padding-top: 100%;
           background: rgba(255, 255, 255, 0.02);
           overflow: hidden;
-        }
-
-        .library-card-cover img {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
         }
 
         .library-card-placeholder {
