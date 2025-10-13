@@ -552,6 +552,7 @@ export default function MusicUp() {
 
 
 
+
     const uploadTracks = async () => {
     if (tracks.length === 0) return;
 
@@ -586,11 +587,9 @@ export default function MusicUp() {
     const userId = user?._id;
     let uploadErrors = 0;
 
-    // 🔥 Config Cloudinary
-    const CLOUD_NAME = "ddigfgmko"; // reemplazá con tu Cloud Name
-    const UPLOAD_PRESET = "music_unsigned"; // preset unsigned desde Cloudinary
+    const CLOUD_NAME = "ddigfgmko";
+    const UPLOAD_PRESET = "music_unsigned";
 
-    // Función para subir a Cloudinary
     const uploadToCloudinary = async (file: File, resourceType: "auto" | "image" | "video" = "auto") => {
         const formData = new FormData();
         formData.append("file", file);
@@ -603,7 +602,7 @@ export default function MusicUp() {
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.error?.message || "Error al subir a Cloudinary");
-        return data.secure_url as string; // URL final del archivo
+        return data.secure_url as string;
     };
 
     for (let i = 0; i < validTracks.length; i += MAX_SIMULTANEOUS) {
@@ -614,7 +613,6 @@ export default function MusicUp() {
             setUploadProgress({ ...progress });
 
             try {
-                // 🔥 Subir primero a Cloudinary
                 let audioUrl = "";
                 let coverUrl = "";
 
@@ -623,7 +621,7 @@ export default function MusicUp() {
                     console.log(`Audio de "${track.title}" subido a Cloudinary:`, audioUrl);
                 } else {
                     console.warn(`Track "${track.title}" no tiene archivo de audio`);
-                    return; // Saltar este track
+                    return;
                 }
 
                 if (track.coverFile) {
@@ -634,7 +632,7 @@ export default function MusicUp() {
                 progress[track.id] = 70;
                 setUploadProgress({ ...progress });
 
-                // 🔥 Enviar metadata y URLs al backend
+                // 🔹 Enviar metadata al backend usando fetch + JSON
                 console.log("Enviando metadata al backend:", {
                     title: track.title,
                     artist: track.artist,
@@ -647,45 +645,31 @@ export default function MusicUp() {
                     coverUrl
                 });
 
-                const formData = new FormData();
-                formData.append("title", track.title);
-                formData.append("artist", track.artist);
-                formData.append("album", track.album || "");
-                formData.append("genre", track.genre || "");
-                formData.append("soloist", track.soloist.toString());
-                formData.append("avance", track.avance.toString());
-                formData.append("userId", userId);
-                formData.append("audioUrl", audioUrl);
-                formData.append("coverUrl", coverUrl);
-
-                await new Promise((resolve, reject) => {
-                    const xhr = new XMLHttpRequest();
-
-                    xhr.upload.addEventListener("progress", (e: ProgressEvent) => {
-                        if (e.lengthComputable) {
-                            const percentComplete = Math.round((e.loaded / e.total) * 30);
-                            progress[track.id] = 70 + percentComplete * 0.3; // 70–100%
-                            setUploadProgress({ ...progress });
-                        }
-                    });
-
-                    xhr.addEventListener("load", () => {
-                        if (xhr.status >= 200 && xhr.status < 300) {
-                            progress[track.id] = 100;
-                            setUploadProgress({ ...progress });
-                            resolve(xhr.response);
-                        } else {
-                            reject(new Error(`Error al guardar metadata: ${xhr.statusText}`));
-                        }
-                    });
-
-                    xhr.addEventListener("error", () => reject(new Error("Error de red")));
-                    xhr.addEventListener("abort", () => reject(new Error("Subida cancelada")));
-
-                    xhr.open("POST", API_URL);
-                    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-                    xhr.send(formData);
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: token ? `Bearer ${token}` : ""
+                    },
+                    body: JSON.stringify({
+                        title: track.title,
+                        artist: track.artist,
+                        album: track.album || "",
+                        genre: track.genre || "",
+                        soloist: track.soloist,
+                        avance: track.avance,
+                        userId,
+                        audioUrl,
+                        coverUrl
+                    })
                 });
+
+                if (!response.ok) {
+                    throw new Error(`Error al guardar metadata: ${response.statusText}`);
+                }
+
+                progress[track.id] = 100;
+                setUploadProgress({ ...progress });
 
             } catch (error) {
                 console.error("❌ Error subiendo track:", error);
@@ -710,9 +694,7 @@ export default function MusicUp() {
                 showConfirmButton: false,
                 background: "#1a1a2e",
                 color: "#fff",
-            }).then(() => {
-                location.reload();
-            });
+            }).then(() => location.reload());
         } else if (uploadErrors < validTracks.length) {
             Swal.fire({
                 icon: "warning",
@@ -1448,6 +1430,7 @@ export default function MusicUp() {
     );
 
 }
+
 
 
 
