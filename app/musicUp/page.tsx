@@ -225,9 +225,9 @@ const updateSavedTrack = async (id: string, updates: TrackUpdateData) => {
 
         let coverUrl = updates.coverUrl;
 
-        // Si hay coverFile, lo subimos a Cloudinary y guardamos la URL
+        // Subir nueva portada a Cloudinary si hay coverFile
         if (updates.coverFile && updates.coverFile instanceof File) {
-            console.log('📤 Subiendo portada a Cloudinary...');
+            console.log('📤 Subiendo nueva portada a Cloudinary...');
             const formData = new FormData();
             formData.append("file", updates.coverFile);
             formData.append("upload_preset", UPLOAD_PRESET);
@@ -242,15 +242,18 @@ const updateSavedTrack = async (id: string, updates: TrackUpdateData) => {
 
             if (!cloudinaryRes.ok) {
                 const errorData = await cloudinaryRes.json();
-                throw new Error(`Error al subir imagen a Cloudinary: ${errorData.error?.message || 'Unknown error'}`);
+                throw new Error(`Error al subir imagen a Cloudinary: ${errorData.error?.message || 'Desconocido'}`);
             }
 
             const cloudinaryData = await cloudinaryRes.json();
             coverUrl = cloudinaryData.secure_url;
             console.log('✅ Portada subida a Cloudinary:', coverUrl);
+
+            // Alert para mostrar la URL al usuario
+            alert(`Portada subida correctamente. URL: ${coverUrl}`);
         }
 
-        // Ahora enviamos JSON al backend con la URL de Cloudinary
+        // Preparar payload para backend
         const payload = {
             title: updates.title,
             artist: updates.artist,
@@ -258,11 +261,12 @@ const updateSavedTrack = async (id: string, updates: TrackUpdateData) => {
             genre: updates.genre || "",
             soloist: updates.soloist,
             avance: updates.avance,
-            coverUrl // esta es la URL de Cloudinary
+            coverUrl // URL obtenida de Cloudinary
         };
 
         console.log('📦 Payload JSON a enviar al backend:', payload);
 
+        // Enviar actualización al backend
         const response = await fetch(`${API_URL}/${id}`, {
             method: 'PUT',
             headers: {
@@ -1279,5 +1283,6 @@ const updateSavedTrack = async (id: string, updates: TrackUpdateData) => {
         </>
     );
 }
+
 
 
