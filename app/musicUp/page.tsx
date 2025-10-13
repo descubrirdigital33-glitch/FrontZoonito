@@ -127,7 +127,56 @@ export default function MusicUp() {
             });
         }
     };
+    
+const updateSavedTrack = async (id: string, updates: Partial<SavedTrack>) => {
+    try {
+        const token = localStorage.getItem('token');
+        
+        const response = await fetch(`${API_URL}/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token && { Authorization: `Bearer ${token}` })
+            },
+            body: JSON.stringify(updates)
+        });
 
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Error al actualizar: ${response.statusText}`);
+        }
+
+        const updatedTrack = await response.json();
+        
+        setSavedTracks(savedTracks.map(track => 
+            track._id === id ? updatedTrack : track
+        ));
+
+        Swal.fire({
+            icon: 'success',
+            title: '¡Actualizada!',
+            text: 'La canción se actualizó correctamente',
+            timer: 2000,
+            showConfirmButton: false,
+            background: '#1a1a2e',
+            color: '#fff',
+        });
+
+        return updatedTrack;
+    } catch (error) {
+        console.error('Error updating track:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: error instanceof Error ? error.message : 'No se pudo actualizar la canción',
+            background: '#1a1a2e',
+            color: '#fff',
+            confirmButtonColor: '#6366f1',
+        });
+    }
+};
+
+    
     const createEmptyTrack = (): MusicTrack => ({
         id: `track-${Date.now()}-${Math.random()}`,
         title: '',
@@ -1101,6 +1150,7 @@ export default function MusicUp() {
     );
 
 }
+
 
 
 
