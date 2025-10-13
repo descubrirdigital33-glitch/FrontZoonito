@@ -1393,114 +1393,98 @@ export default function MusicUp() {
         }
     };
 
-    const updateSavedTrack = async (id: string, updates: TrackUpdateData) => {
-        try {
-            const token = localStorage.getItem('token');
-            const CLOUD_NAME = "ddigfgmko";
-            const UPLOAD_PRESET = "music_unsigned";
+const updateSavedTrack = async (id: string, updates: TrackUpdateData) => {
+    try {
+        const token = localStorage.getItem('token');
+        const CLOUD_NAME = "ddigfgmko";
+        const UPLOAD_PRESET = "music_unsigned";
 
-            console.log('🔄 Actualizando track:', id);
-            console.log('📦 Updates recibidos:', updates);
+        console.log('🔄 Actualizando track:', id);
+        console.log('📦 Updates recibidos:', updates);
 
-            let coverUrl = updates.coverUrl;
+        let body: FormData | string;
+        let headers: any = {};
 
-            if (updates.coverFile && updates.coverFile instanceof File) {
-                console.log('📤 Subiendo nueva portada a Cloudinary...');
-                const formData = new FormData();
-                formData.append("file", updates.coverFile);
-                formData.append("upload_preset", UPLOAD_PRESET);
+        // Si hay coverFile, usamos FormData
+        if (updates.coverFile && updates.coverFile instanceof File) {
+            const formData = new FormData();
+            formData.append("coverFile", updates.coverFile);
+            formData.append("title", updates.title);
+            formData.append("artist", updates.artist);
+            formData.append("album", updates.album || "");
+            formData.append("genre", updates.genre || "");
+            formData.append("soloist", updates.soloist.toString());
+            formData.append("avance", updates.avance.toString());
+            if (updates.coverUrl) formData.append("coverUrl", updates.coverUrl);
+            body = formData;
 
-                const cloudinaryRes = await fetch(
-                    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-                    {
-                        method: "POST",
-                        body: formData,
-                    }
-                );
-
-                if (!cloudinaryRes.ok) {
-                    const errorData = await cloudinaryRes.json();
-                    throw new Error(`Error al subir imagen a Cloudinary: ${errorData.error?.message || 'Unknown error'}`);
-                }
-
-                const cloudinaryData = await cloudinaryRes.json();
-                coverUrl = cloudinaryData.secure_url;
-                console.log('✅ Portada subida exitosamente:', coverUrl);
-            }
-
-            const payload = {
+            // No ponemos Content-Type, el navegador lo hace automáticamente
+            headers = token ? { Authorization: `Bearer ${token}` } : {};
+        } else {
+            // Si no hay archivo, enviamos JSON
+            body = JSON.stringify({
                 title: updates.title,
                 artist: updates.artist,
                 album: updates.album || "",
                 genre: updates.genre || "",
                 soloist: updates.soloist,
                 avance: updates.avance,
-                ...(coverUrl && { coverUrl })
+                coverUrl: updates.coverUrl
+            });
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                ...(token && { Authorization: `Bearer ${token}` })
             };
-
-            console.log('📦 Payload JSON a enviar:', JSON.stringify(payload, null, 2));
-
-            const response = await fetch(`${API_URL}/${id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    ...(token && { Authorization: `Bearer ${token}` })
-                },
-                body: JSON.stringify(payload)
-            });
-
-            console.log('📡 Response status:', response.status);
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                let errorData: { message?: string };
-                try {
-                    errorData = JSON.parse(errorText);
-                } catch {
-                    errorData = { message: errorText };
-                }
-                throw new Error(errorData.message || `Error al actualizar: ${response.statusText}`);
-            }
-
-            const responseText = await response.text();
-            console.log('📡 Response body (raw):', responseText);
-
-            let updatedTrack: SavedTrack;
-            try {
-                updatedTrack = JSON.parse(responseText);
-            } catch (parseError) {
-                console.error('❌ Error parseando respuesta:', parseError);
-                throw new Error('Respuesta inválida del servidor');
-            }
-
-            setSavedTracks(savedTracks.map(track =>
-                track._id === id ? updatedTrack : track
-            ));
-
-            Swal.fire({
-                icon: 'success',
-                title: '¡Actualizada!',
-                text: 'La canción se actualizó correctamente',
-                timer: 2000,
-                showConfirmButton: false,
-                background: '#1a1a2e',
-                color: '#fff',
-            });
-
-            return updatedTrack;
-        } catch (error) {
-            console.error('❌ Error updating track:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: error instanceof Error ? error.message : 'No se pudo actualizar la canción',
-                background: '#1a1a2e',
-                color: '#fff',
-                confirmButtonColor: '#6366f1',
-            });
         }
-    };
+
+        const response = await fetch(`${API_URL}/${id}`, {
+            method: 'PUT',
+            headers,
+            body
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            let errorData: { message?: string };
+            try {
+                errorData = JSON.parse(errorText);
+            } catch {
+                errorData = { message: errorText };
+            }
+            throw new Error(errorData.message || `Error al actualizar: ${response.statusText}`);
+        }
+
+        const updatedTrack = await response.json();
+        console.log('✅ Track actualizado:', updatedTrack);
+
+        setSavedTracks(savedTracks.map(track =>
+            track._id === id ? updatedTrack : track
+        ));
+
+        Swal.fire({
+            icon: 'success',
+            title: '¡Actualizada!',
+            text: 'La canción se actualizó correctamente',
+            timer: 2000,
+            showConfirmButton: false,
+            background: '#1a1a2e',
+            color: '#fff',
+        });
+
+        return updatedTrack;
+    } catch (error) {
+        console.error('❌ Error updating track:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: error instanceof Error ? error.message : 'No se pudo actualizar la canción',
+            background: '#1a1a2e',
+            color: '#fff',
+            confirmButtonColor: '#6366f1',
+        });
+    }
+};
 
     const createEmptyTrack = (): MusicTrack => ({
         id: `track-${Date.now()}-${Math.random()}`,
@@ -2464,3 +2448,4 @@ export default function MusicUp() {
         </>
     );
 }
+
