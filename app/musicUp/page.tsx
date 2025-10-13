@@ -364,6 +364,194 @@ export default function MusicUp() {
     // };
 
 
+//     const uploadTracks = async () => {
+//     if (tracks.length === 0) return;
+
+//     if (!user?._id) {
+//         Swal.fire({
+//             icon: 'error',
+//             title: 'No autenticado',
+//             text: 'Debes estar logueado para subir música',
+//             background: '#1a1a2e',
+//             color: '#fff',
+//             confirmButtonColor: '#6366f1',
+//         });
+//         return;
+//     }
+
+//     const validTracks = tracks.filter(t => t.title && t.artist && t.audioFile);
+//     if (validTracks.length === 0) {
+//         Swal.fire({
+//             icon: 'warning',
+//             title: 'Datos incompletos',
+//             text: 'Por favor completa al menos título, artista y archivo de audio',
+//             background: '#1a1a2e',
+//             color: '#fff',
+//             confirmButtonColor: '#6366f1',
+//         });
+//         return;
+//     }
+
+//     setIsUploading(true);
+//     const progress: UploadProgress = {};
+//     const token = localStorage.getItem('token');
+//     const userId = user?._id;
+//     let uploadErrors = 0;
+
+//     // 🔥 Config Cloudinary
+//     const CLOUD_NAME = "ddigfgmko"; // 👈 reemplazá con el tuyo
+//    const UPLOAD_PRESET = "music_unsigned"; // 👈 preset unsigned desde Cloudinary
+
+//     const uploadToCloudinary = async (file: File, resourceType: "auto" | "image" | "video" = "auto") => {
+//         const formData = new FormData();
+//         formData.append("file", file);
+//         formData.append("upload_preset", UPLOAD_PRESET);
+
+//         const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`, {
+//             method: "POST",
+//             body: formData,
+//         });
+
+//         const data = await res.json();
+//         if (!res.ok) throw new Error(data.error?.message || "Error al subir a Cloudinary");
+//         return data.secure_url as string; // URL final
+//     };
+
+//     for (let i = 0; i < validTracks.length; i += MAX_SIMULTANEOUS) {
+//         const batch = validTracks.slice(i, i + MAX_SIMULTANEOUS);
+
+//       await Promise.all(batch.map(async (track) => {
+//     progress[track.id] = 0;
+//     setUploadProgress({ ...progress });
+
+//     try {
+//         // 🔥 Subir primero a Cloudinary
+//         let audioUrl = "";
+//         let coverUrl = "";
+
+//         if (track.audioFile) {
+//             audioUrl = await uploadToCloudinary(track.audioFile, "video");
+//         } else {
+//             console.warn(`Track "${track.title}" no tiene archivo de audio`);
+//             return; // o continuar con next track según tu lógica
+//         }
+
+//         if (track.coverFile) {
+//             coverUrl = await uploadToCloudinary(track.coverFile, "image");
+//         }
+
+//         // Aquí ya tenés audioUrl y coverUrl seguros para enviar al backend
+//         progress[track.id] = 70;
+//         setUploadProgress({ ...progress });
+
+//                 // 🔥 Ahora enviamos los datos y URLs al backend (ligero)
+//                 const formData = new FormData();
+//                 formData.append("title", track.title);
+//                 formData.append("artist", track.artist);
+//                 formData.append("album", track.album);
+//                 formData.append("genre", track.genre);
+//                 formData.append("soloist", track.soloist.toString());
+//                 formData.append("avance", track.avance.toString());
+//                 formData.append("userId", userId);
+//                 formData.append("audioUrl", audioUrl);
+//                 formData.append("coverUrl", coverUrl);
+
+//                 await new Promise((resolve, reject) => {
+//                     const xhr = new XMLHttpRequest();
+
+//                     xhr.upload.addEventListener("progress", (e: ProgressEvent) => {
+//                         if (e.lengthComputable) {
+//                             const percentComplete = Math.round((e.loaded / e.total) * 30);
+//                             progress[track.id] = 70 + percentComplete * 0.3; // 70–100%
+//                             setUploadProgress({ ...progress });
+//                         }
+//                     });
+
+//                     xhr.addEventListener("load", () => {
+//                         if (xhr.status >= 200 && xhr.status < 300) {
+//                             progress[track.id] = 100;
+//                             setUploadProgress({ ...progress });
+//                             resolve(xhr.response);
+//                         } else {
+//                             reject(new Error(`Error al guardar metadata: ${xhr.statusText}`));
+//                         }
+//                     });
+
+//                     xhr.addEventListener("error", () => reject(new Error("Error de red")));
+//                     xhr.addEventListener("abort", () => reject(new Error("Subida cancelada")));
+
+//                     xhr.open("POST", API_URL);
+//                     if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+//                     xhr.send(formData);
+//                 });
+
+//             } catch (error) {
+//                 console.error("❌ Error subiendo track:", error);
+//                 progress[track.id] = -1;
+//                 setUploadProgress({ ...progress });
+//                 uploadErrors++;
+//             }
+//         }));
+//     }
+
+//     setTimeout(() => {
+//         setIsUploading(false);
+//         setUploadProgress({});
+//         setTracks([]);
+
+//         if (uploadErrors === 0) {
+//             Swal.fire({
+//                 icon: "success",
+//                 title: "¡Éxito!",
+//                 text: `${validTracks.length} canción${validTracks.length !== 1 ? "es" : ""} subida${validTracks.length !== 1 ? "s" : ""} correctamente`,
+//                 timer: 2500,
+//                 showConfirmButton: false,
+//                 background: "#1a1a2e",
+//                 color: "#fff",
+//             }).then(() => {
+//                 location.reload();
+//             });
+//         } else if (uploadErrors < validTracks.length) {
+//             Swal.fire({
+//                 icon: "warning",
+//                 title: "Subida parcial",
+//                 text: `Se subieron ${validTracks.length - uploadErrors} de ${validTracks.length} canciones`,
+//                 background: "#1a1a2e",
+//                 color: "#fff",
+//                 confirmButtonColor: "#6366f1",
+//             });
+//         } else {
+//             Swal.fire({
+//                 icon: "error",
+//                 title: "Error",
+//                 text: "No se pudo subir ninguna canción",
+//                 background: "#1a1a2e",
+//                 color: "#fff",
+//                 confirmButtonColor: "#6366f1",
+//             });
+//         }
+
+//         if (activeTab === "library") {
+//             fetchSavedTracks();
+//         }
+//     }, 1000);
+// };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     const uploadTracks = async () => {
     if (tracks.length === 0) return;
 
@@ -393,15 +581,16 @@ export default function MusicUp() {
     }
 
     setIsUploading(true);
-    const progress: UploadProgress = {};
+    const progress: Record<string, number> = {};
     const token = localStorage.getItem('token');
     const userId = user?._id;
     let uploadErrors = 0;
 
     // 🔥 Config Cloudinary
-    const CLOUD_NAME = "ddigfgmko"; // 👈 reemplazá con el tuyo
-   const UPLOAD_PRESET = "music_unsigned"; // 👈 preset unsigned desde Cloudinary
+    const CLOUD_NAME = "ddigfgmko"; // reemplazá con tu Cloud Name
+    const UPLOAD_PRESET = "music_unsigned"; // preset unsigned desde Cloudinary
 
+    // Función para subir a Cloudinary
     const uploadToCloudinary = async (file: File, resourceType: "auto" | "image" | "video" = "auto") => {
         const formData = new FormData();
         formData.append("file", file);
@@ -414,42 +603,55 @@ export default function MusicUp() {
 
         const data = await res.json();
         if (!res.ok) throw new Error(data.error?.message || "Error al subir a Cloudinary");
-        return data.secure_url as string; // URL final
+        return data.secure_url as string; // URL final del archivo
     };
 
     for (let i = 0; i < validTracks.length; i += MAX_SIMULTANEOUS) {
         const batch = validTracks.slice(i, i + MAX_SIMULTANEOUS);
 
-      await Promise.all(batch.map(async (track) => {
-    progress[track.id] = 0;
-    setUploadProgress({ ...progress });
+        await Promise.all(batch.map(async (track) => {
+            progress[track.id] = 0;
+            setUploadProgress({ ...progress });
 
-    try {
-        // 🔥 Subir primero a Cloudinary
-        let audioUrl = "";
-        let coverUrl = "";
+            try {
+                // 🔥 Subir primero a Cloudinary
+                let audioUrl = "";
+                let coverUrl = "";
 
-        if (track.audioFile) {
-            audioUrl = await uploadToCloudinary(track.audioFile, "video");
-        } else {
-            console.warn(`Track "${track.title}" no tiene archivo de audio`);
-            return; // o continuar con next track según tu lógica
-        }
+                if (track.audioFile) {
+                    audioUrl = await uploadToCloudinary(track.audioFile, "video");
+                    console.log(`Audio de "${track.title}" subido a Cloudinary:`, audioUrl);
+                } else {
+                    console.warn(`Track "${track.title}" no tiene archivo de audio`);
+                    return; // Saltar este track
+                }
 
-        if (track.coverFile) {
-            coverUrl = await uploadToCloudinary(track.coverFile, "image");
-        }
+                if (track.coverFile) {
+                    coverUrl = await uploadToCloudinary(track.coverFile, "image");
+                    console.log(`Cover de "${track.title}" subido a Cloudinary:`, coverUrl);
+                }
 
-        // Aquí ya tenés audioUrl y coverUrl seguros para enviar al backend
-        progress[track.id] = 70;
-        setUploadProgress({ ...progress });
+                progress[track.id] = 70;
+                setUploadProgress({ ...progress });
 
-                // 🔥 Ahora enviamos los datos y URLs al backend (ligero)
+                // 🔥 Enviar metadata y URLs al backend
+                console.log("Enviando metadata al backend:", {
+                    title: track.title,
+                    artist: track.artist,
+                    album: track.album,
+                    genre: track.genre,
+                    soloist: track.soloist,
+                    avance: track.avance,
+                    userId,
+                    audioUrl,
+                    coverUrl
+                });
+
                 const formData = new FormData();
                 formData.append("title", track.title);
                 formData.append("artist", track.artist);
-                formData.append("album", track.album);
-                formData.append("genre", track.genre);
+                formData.append("album", track.album || "");
+                formData.append("genre", track.genre || "");
                 formData.append("soloist", track.soloist.toString());
                 formData.append("avance", track.avance.toString());
                 formData.append("userId", userId);
@@ -536,6 +738,7 @@ export default function MusicUp() {
         }
     }, 1000);
 };
+
 
     return (
         <>
@@ -1245,5 +1448,6 @@ export default function MusicUp() {
     );
 
 }
+
 
 
