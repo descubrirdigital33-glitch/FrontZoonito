@@ -132,6 +132,9 @@ const updateSavedTrack = async (id: string, updates: Partial<SavedTrack>) => {
     try {
         const token = localStorage.getItem('token');
         
+        console.log('🔄 Actualizando track:', id);
+        console.log('📦 Updates a enviar:', updates);
+        
         const response = await fetch(`${API_URL}/${id}`, {
             method: 'PUT',
             headers: {
@@ -141,12 +144,21 @@ const updateSavedTrack = async (id: string, updates: Partial<SavedTrack>) => {
             body: JSON.stringify(updates)
         });
 
+        console.log('📡 Response status:', response.status);
+        const responseText = await response.text();
+        console.log('📡 Response body:', responseText);
+
         if (!response.ok) {
-            const errorData = await response.json();
+            let errorData;
+            try {
+                errorData = JSON.parse(responseText);
+            } catch {
+                errorData = { message: responseText };
+            }
             throw new Error(errorData.message || `Error al actualizar: ${response.statusText}`);
         }
 
-        const updatedTrack = await response.json();
+        const updatedTrack = JSON.parse(responseText);
         
         setSavedTracks(savedTracks.map(track => 
             track._id === id ? updatedTrack : track
@@ -164,7 +176,7 @@ const updateSavedTrack = async (id: string, updates: Partial<SavedTrack>) => {
 
         return updatedTrack;
     } catch (error) {
-        console.error('Error updating track:', error);
+        console.error('❌ Error updating track:', error);
         Swal.fire({
             icon: 'error',
             title: 'Error',
@@ -175,7 +187,6 @@ const updateSavedTrack = async (id: string, updates: Partial<SavedTrack>) => {
         });
     }
 };
-
     
     const createEmptyTrack = (): MusicTrack => ({
         id: `track-${Date.now()}-${Math.random()}`,
@@ -1150,6 +1161,7 @@ const updateSavedTrack = async (id: string, updates: Partial<SavedTrack>) => {
     );
 
 }
+
 
 
 
