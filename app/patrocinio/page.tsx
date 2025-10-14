@@ -1,4 +1,5 @@
 // "use client";
+
 // import React, { useState, useContext, useEffect, FormEvent } from "react";
 // import { useRouter } from "next/navigation";
 // import { UserContext } from "../context/UserContext";
@@ -50,7 +51,7 @@
 //     const [isSubmitting, setIsSubmitting] = useState(false);
 
 //     const API_URL = "https://backend-zoonito-6x8h.vercel.app/api/eventos";
-//     const codigoBackend = "PROMO2025GALI";
+//     const codigoBackend = "PROMO2025";
 //     const { user } = useContext(UserContext);
 //     const router = useRouter();
 
@@ -118,53 +119,157 @@
 
 //     const cerrarModal = () => { setModalAbierto(false); setEventoActual(null); setFile(null); setIsSubmitting(false); };
 
+   
 //     const handleSubmit = async (e: FormEvent) => {
-//         e.preventDefault();
-//         setIsSubmitting(true);
+//     e.preventDefault();
+//     setIsSubmitting(true);
+
+//     const CLOUD_NAME = "ddigfgmko";
+//     const UPLOAD_PRESET = "music_unsigned";
+
+//     try {
 //         const esPromocionado = formData.promocionado && formData.codigoPromocional === codigoBackend;
+        
+//         let imagenUrl = formData.imagenUrl;
 
-//         try {
-//             const formPayload = new FormData();
-//             formPayload.append("banda", formData.banda);
-//             formPayload.append("disco", formData.disco);
-//             formPayload.append("fecha", formData.fecha);
-//             formPayload.append("hora", formData.hora);
-//             formPayload.append("direccion", formData.direccion);
-//             formPayload.append("diseño", formData.diseño);
-//             formPayload.append("promocionado", String(esPromocionado));
-//             formPayload.append("codigoPromocional", formData.codigoPromocional);
+//         console.log('📤 Iniciando envío de evento');
+//         console.log('📸 Archivo:', file);
+//         console.log('🖼️ URL actual:', imagenUrl);
 
-//             if (file) formPayload.append("imagen", file);
-//             else formPayload.append("imagenUrl", formData.imagenUrl);
+//         // ✅ Subir imagen a Cloudinary si hay archivo
+//         if (file) {
+//             console.log('📤 Subiendo imagen a Cloudinary...');
+//             const cloudinaryFormData = new FormData();
+//             cloudinaryFormData.append("file", file);
+//             cloudinaryFormData.append("upload_preset", UPLOAD_PRESET);
 
-//             let res: Response;
-//             if (modoEdicion && eventoActual) {
-//                 res = await fetch(`${API_URL}/${userId}/${eventoActual._id}`, {
-//                     method: "PUT",
-//                     body: formPayload,
-//                 });
-//             } else {
-//                 res = await fetch(`${API_URL}/${userId}`, {
-//                     method: "POST",
-//                     body: formPayload,
-//                 });
+//             try {
+//                 const cloudinaryRes = await fetch(
+//                     `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+//                     {
+//                         method: "POST",
+//                         body: cloudinaryFormData,
+//                     }
+//                 );
+
+//                 if (!cloudinaryRes.ok) {
+//                     const errorData = await cloudinaryRes.json();
+//                     console.error('❌ Error Cloudinary:', errorData);
+//                     throw new Error(`Error en Cloudinary: ${errorData.error?.message || 'Desconocido'}`);
+//                 }
+
+//                 const cloudinaryData = await cloudinaryRes.json();
+//                 imagenUrl = cloudinaryData.secure_url;
+//                 console.log('✅ Imagen subida a Cloudinary:', imagenUrl);
+//             } catch (cloudinaryError) {
+//                 console.error('❌ Error subiendo a Cloudinary:', cloudinaryError);
+//                 throw cloudinaryError;
+//             }
+//         }
+
+//         // ✅ Preparar payload JSON (como en MusicUp)
+//         const payload = {
+//             banda: formData.banda,
+//             disco: formData.disco,
+//             fecha: formData.fecha,
+//             hora: formData.hora || "",
+//             direccion: formData.direccion,
+//             imagenUrl: imagenUrl, // URL de Cloudinary o la actual
+//             promocionado: esPromocionado,
+//             codigoPromocional: esPromocionado ? formData.codigoPromocional : "",
+//             diseño: formData.diseño,
+//         };
+
+//         console.log('📦 ========== PAYLOAD A ENVIAR ==========');
+//         console.log('Método:', modoEdicion ? 'PUT' : 'POST');
+//         console.log('URL:', modoEdicion 
+//             ? `${API_URL}/${userId}/${eventoActual?._id}`
+//             : `${API_URL}/${userId}`
+//         );
+//         console.log('Body:', JSON.stringify(payload, null, 2));
+//         console.log('=========================================');
+
+//         // ✅ Headers correctos
+//         const headers: Record<string, string> = {
+//             'Content-Type': 'application/json',
+//             'Accept': 'application/json',
+//         };
+
+//         // ✅ Enviar al backend
+//         let res: Response;
+//         if (modoEdicion && eventoActual) {
+//             res = await fetch(`${API_URL}/${userId}/${eventoActual._id}`, {
+//                 method: "PUT",
+//                 headers: headers,
+//                 body: JSON.stringify(payload),
+//             });
+//         } else {
+//             res = await fetch(`${API_URL}/${userId}`, {
+//                 method: "POST",
+//                 headers: headers,
+//                 body: JSON.stringify(payload),
+//             });
+//         }
+
+//         console.log('📨 Status respuesta:', res.status, res.statusText);
+
+//         const responseText = await res.text();
+//         console.log('📨 Response (texto):', responseText);
+
+//         if (res.ok) {
+//             let responseData;
+//             try {
+//                 responseData = JSON.parse(responseText);
+//                 console.log('✅ Respuesta parseada:', responseData);
+//             } catch (parseError) {
+//                 console.error('❌ Error parseando respuesta:', parseError);
+//                 throw new Error(`No se pudo parsear la respuesta: ${responseText}`);
 //             }
 
-//             if (res.ok) {
-//                 const msg = modoEdicion ? "Evento actualizado exitosamente" : (esPromocionado ? "✨ Evento promocionado creado exitosamente" : "✓ Evento guardado sin promoción");
-//                 await Swal.fire({ icon: "success", title: "¡Éxito!", text: msg, timer: 2000, showConfirmButton: false });
-//                 await cargarEventos();
-//                 cerrarModal();
-//             } else {
-//                 const errText = modoEdicion ? "Error al actualizar el evento" : "Error al crear el evento";
-//                 Swal.fire({ icon: "error", title: "¡Error!", text: errText });
-//                 setIsSubmitting(false);
+//             const msg = modoEdicion 
+//                 ? "Evento actualizado exitosamente" 
+//                 : (esPromocionado ? "✨ Evento promocionado creado exitosamente" : "✓ Evento guardado sin promoción");
+
+//             await Swal.fire({ 
+//                 icon: "success", 
+//                 title: "¡Éxito!", 
+//                 text: msg, 
+//                 timer: 2000, 
+//                 showConfirmButton: false 
+//             });
+            
+//             await cargarEventos();
+//             cerrarModal();
+//         } else {
+//             console.error('❌ Error en respuesta del servidor');
+//             console.error('Status:', res.status);
+//             console.error('Response text:', responseText);
+
+//             let errorMessage = modoEdicion ? "Error al actualizar el evento" : "Error al crear el evento";
+//             try {
+//                 const errorData = JSON.parse(responseText);
+//                 errorMessage = errorData.message || errorMessage;
+//             } catch {
+//                 errorMessage = responseText || errorMessage;
 //             }
-//         } catch (error) {
-//             Swal.fire({ icon: "error", title: "¡Error!", text: "Ocurrió un error al guardar el evento" });
+
+//             Swal.fire({ 
+//                 icon: "error", 
+//                 title: "¡Error!", 
+//                 text: errorMessage 
+//             });
 //             setIsSubmitting(false);
 //         }
-//     };
+//     } catch (error) {
+//         console.error('❌ Error en handleSubmit:', error);
+//         Swal.fire({ 
+//             icon: "error", 
+//             title: "¡Error!", 
+//             text: error instanceof Error ? error.message : "Ocurrió un error al guardar el evento" 
+//         });
+//         setIsSubmitting(false);
+//     }
+// };
 
 //     const eliminarEvento = async (id: string) => {
 //         if (!confirm("¿Estás seguro de eliminar este evento?")) return;
@@ -227,6 +332,7 @@
 //         }
 //     };
 
+//     // Nueva función para notificar al admin sobre evento congelado
 //     const notificarAdmin = async (evento: Evento) => {
 //         try {
 //             const avisoData = {
@@ -567,8 +673,9 @@
 //             )}
 //         </div>
 //     );
-
 // }
+
+
 
 
 
@@ -1253,4 +1360,3 @@ export default function EventosManager() {
         </div>
     );
 }
-
