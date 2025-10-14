@@ -6,11 +6,18 @@
 // export default function Navbar() {
 //   const { user, logoutUser } = useContext(UserContext);
 //   const [isOpen, setIsOpen] = useState(false);
+
+//   // Cierra menú en mobile al hacer click
+//   const handleLinkClick = () => {
+//     if (isOpen) setIsOpen(false);
+//   };
+
 //   return (
 //     <nav className="navbar-enhanced sticky top-0 z-50 bg-black/30 backdrop-blur-md border-b border-white/20 px-6 py-4 flex items-center justify-between">
 //       {/* Logo */}
 //       <Link
 //         href="/"
+//         onClick={handleLinkClick}
 //         className="font-extrabold text-2xl glow-text hover:scale-105 transition-transform"
 //       >
 //         Zoonito
@@ -59,12 +66,14 @@
 //               <>
 //                 <Link
 //                   href="/subscribe"
+//                   onClick={handleLinkClick}
 //                   className="btn-glass btn-primary hover:shadow-[0_0_10px_#00f0ff,0_0_20px_#ff2ddb] transition-shadow"
 //                 >
 //                   Suscribirse
 //                 </Link>
 //                 <Link
 //                   href="/perfiledit"
+//                   onClick={handleLinkClick}
 //                   className="btn-glass btn-secondary hover:shadow-[0_0_10px_#ff2ddb,0_0_20px_#00f0ff] transition-shadow"
 //                 >
 //                   Editar Perfil
@@ -76,18 +85,21 @@
 //               <>
 //                 <Link
 //                   href="/musicUp"
+//                   onClick={handleLinkClick}
 //                   className="btn-glass btn-primary hover:shadow-[0_0_10px_#00f0ff,0_0_20px_#ff2ddb] transition-shadow"
 //                 >
 //                   Subir Música
 //                 </Link>
 //                 <Link
 //                   href="/perfiledit"
+//                   onClick={handleLinkClick}
 //                   className="btn-glass btn-secondary hover:shadow-[0_0_10px_#ff2ddb,0_0_20px_#00f0ff] transition-shadow"
 //                 >
 //                   Editar Perfil
 //                 </Link>
 //                 <Link
 //                   href="/patrocinio"
+//                   onClick={handleLinkClick}
 //                   className="btn-glass btn-secondary hover:shadow-[0_0_10px_#ff2ddb,0_0_20px_#00f0ff] transition-shadow"
 //                 >
 //                   Publicidad
@@ -97,20 +109,21 @@
 
 //             {/* Botón exclusivo para admins */}
 //             {user.role === "admin" && (
-//               <>
-//                 {" "}
-//                 <Link
-//                   href="/testpubli"
-//                   className="px-6 py-3 rounded-xl bg-gradient-to-r from-red-400 to-red-800 text-white font-bold hover:scale-105 transition-transform shadow-lg"
-//                 >
-//                   Patrocinio
-//                 </Link>
-//               </>
+//               <Link
+//                 href="/testpubli"
+//                 onClick={handleLinkClick}
+//                 className="px-6 py-3 rounded-xl bg-gradient-to-r from-red-400 to-red-800 text-white font-bold hover:scale-105 transition-transform shadow-lg"
+//               >
+//                 Patrocinio
+//               </Link>
 //             )}
 
 //             {/* Botón salir */}
 //             <button
-//               onClick={logoutUser}
+//               onClick={() => {
+//                 logoutUser();
+//                 handleLinkClick();
+//               }}
 //               className="btn-glass btn-danger hover:shadow-[0_0_10px_#ff2ddb,0_0_20px_#00f0ff] transition-shadow"
 //             >
 //               Salir
@@ -120,19 +133,29 @@
 //           <>
 //             {/* Menú para no logueados */}
 //             <Link
-//               href="/musicAll"
+//               href="/publising"
+//               onClick={handleLinkClick}
 //               className="btn-glass btn-primary hover:shadow-[0_0_10px_#00f0ff,0_0_20px_#ff2ddb] transition-shadow"
 //             >
-//               Musica estado puro
+//               Eventos
+//             </Link>
+//             <Link
+//               href="/musicAll"
+//               onClick={handleLinkClick}
+//               className="btn-glass btn-primary hover:shadow-[0_0_10px_#00f0ff,0_0_20px_#ff2ddb] transition-shadow"
+//             >
+//               Estado puro
 //             </Link>
 //             <Link
 //               href="/login"
+//               onClick={handleLinkClick}
 //               className="btn-glass btn-primary hover:shadow-[0_0_10px_#00f0ff,0_0_20px_#ff2ddb] transition-shadow"
 //             >
 //               Login
 //             </Link>
 //             <Link
 //               href="/register"
+//               onClick={handleLinkClick}
 //               className="btn-glass btn-secondary hover:shadow-[0_0_10px_#ff2ddb,0_0_20px_#00f0ff] transition-shadow"
 //             >
 //               Registrate
@@ -143,7 +166,6 @@
 //     </nav>
 //   );
 // }
-
 
 
 "use client";
@@ -213,6 +235,13 @@ export default function Navbar() {
             {user.role === "user" && (
               <>
                 <Link
+                  href="/publising"
+                  onClick={handleLinkClick}
+                  className="btn-glass btn-primary hover:shadow-[0_0_10px_#00f0ff,0_0_20px_#ff2ddb] transition-shadow"
+                >
+                  Eventos
+                </Link>
+                <Link
                   href="/subscribe"
                   onClick={handleLinkClick}
                   className="btn-glass btn-primary hover:shadow-[0_0_10px_#00f0ff,0_0_20px_#ff2ddb] transition-shadow"
@@ -231,6 +260,13 @@ export default function Navbar() {
 
             {(user.role === "artist" || user.role === "admin") && (
               <>
+                <Link
+                  href="/publising"
+                  onClick={handleLinkClick}
+                  className="btn-glass btn-primary hover:shadow-[0_0_10px_#00f0ff,0_0_20px_#ff2ddb] transition-shadow"
+                >
+                  Eventos
+                </Link>
                 <Link
                   href="/musicUp"
                   onClick={handleLinkClick}
@@ -314,4 +350,3 @@ export default function Navbar() {
     </nav>
   );
 }
-
