@@ -168,7 +168,7 @@ export default function Navbar() {
         onClick={handleLinkClick}
         className="font-extrabold text-2xl glow-text hover:scale-105 transition-transform"
       >
-        MusicApp
+        Zoonito
       </Link>
 
       {/* Botón hamburguesa */}
@@ -314,3 +314,4 @@ export default function Navbar() {
     </nav>
   );
 }
+
