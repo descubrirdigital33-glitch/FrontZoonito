@@ -209,13 +209,27 @@ export default function HomePage() {
     setShowSponsorAlert(false);
   };
 
+  // const handleGoToFanpage = () => {
+  //   if (currentSponsor) {
+  //     saveClosedSponsor(currentSponsor._id);
+  //     setShowSponsorAlert(false);
+  //     window.location.href = `/fanpage/${currentSponsor.banda.replace(/\s+/g, '-').toLowerCase()}`;
+  //   }
+  // };
+
+
   const handleGoToFanpage = () => {
-    if (currentSponsor) {
-      saveClosedSponsor(currentSponsor._id);
-      setShowSponsorAlert(false);
-      window.location.href = `/fanpage/${currentSponsor.banda.replace(/\s+/g, '-').toLowerCase()}`;
-    }
-  };
+  if (currentSponsor) {
+    // Guardar el ID del evento del sponsor en localStorage
+    localStorage.setItem('sponsorEventoId', currentSponsor.idMusico);
+   
+    // Guardar que este sponsor fue cerrado
+    saveClosedSponsor(currentSponsor.idMusico);
+    setShowSponsorAlert(false);
+    // Redirigir a la página de publicaciones
+    window.location.href = `/publising`;
+  }
+};
 
   const getSliderItems = () => {
     const allItems: Array<Music | Patrocinio> = [];
