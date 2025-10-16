@@ -7,7 +7,7 @@ import ClientLayout from './components/ClientLayout';
 
 export const metadata = {
   title: 'Zoonito',
-  description: 'Music App',
+  description: 'Music App Free For You',
 };
 
 interface RootLayoutProps {
