@@ -206,13 +206,6 @@ export default function Navbar() {
       >
         Zoonito
       </Link>
-      <Link
-        href="/karaoke"
-        onClick={handleLinkClick}
-        className="font-extrabold text-2xl glow-text hover:scale-105 transition-transform"
-      >
-        Kara
-      </Link>
 
       {/* Botón hamburguesa */}
       <div className="md:hidden">
@@ -371,3 +364,4 @@ export default function Navbar() {
     </nav>
   );
 }
+
