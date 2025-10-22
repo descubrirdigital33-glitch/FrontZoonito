@@ -61,6 +61,7 @@
 //   const recordedChunksRef = useRef<Blob[]>([]);
 //   const animationFrameRef = useRef<number | undefined>(undefined);
 //   const audioContextRef = useRef<AudioContext | null>(null);
+//   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
 
 //   const isMobile = (): boolean => {
 //     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
@@ -269,6 +270,10 @@
 //       return;
 //     }
 
+//     // Guardar el estado de reproducción
+//     const wasPlaying = !audioElement.paused;
+//     const currentTime = audioElement.currentTime;
+
 //     try {
 //       if (isMobile()) {
 //         const recordCanvas = document.createElement('canvas');
@@ -281,22 +286,35 @@
 //         let audioContext: AudioContext;
 //         let audioDestination: MediaStreamAudioDestinationNode;
 
-//         if (!audioContextRef.current) {
+//         // Crear o reutilizar AudioContext
+//         if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
 //           audioContext = new AudioContext();
 //           audioContextRef.current = audioContext;
           
-//           const audioSource = audioContext.createMediaElementSource(audioElement);
+//           // Crear source solo si no existe
+//           if (!audioSourceRef.current) {
+//             audioSourceRef.current = audioContext.createMediaElementSource(audioElement);
+//           }
+          
 //           audioDestination = audioContext.createMediaStreamDestination();
           
-//           audioSource.connect(audioDestination);
-//           audioSource.connect(audioContext.destination);
+//           // Conectar el audio source al destino Y a los speakers
+//           audioSourceRef.current.connect(audioDestination);
+//           audioSourceRef.current.connect(audioContext.destination);
 //         } else {
 //           audioContext = audioContextRef.current;
 //           audioDestination = audioContext.createMediaStreamDestination();
           
-//           const existingSource = audioContext.createMediaElementSource(audioElement);
-//           existingSource.connect(audioDestination);
-//           existingSource.connect(audioContext.destination);
+//           // Reconectar el source existente
+//           if (audioSourceRef.current) {
+//             audioSourceRef.current.connect(audioDestination);
+//             audioSourceRef.current.connect(audioContext.destination);
+//           }
+//         }
+
+//         // Reanudar AudioContext si está suspendido
+//         if (audioContext.state === 'suspended') {
+//           await audioContext.resume();
 //         }
 
 //         const combinedStream = new MediaStream([
@@ -353,46 +371,36 @@
 //         mediaRecorderRef.current = mediaRecorder;
 //         setIsRecording(true);
 
-//         // Mostrar alerta SIN pausar el audio
-//         Swal.fire({
-//           icon: 'success',
-//           title: '🎤 Grabando Karaoke',
-//           html: `
-//             <div style="text-align: center; padding: 10px;">
-//               <p style="font-size: 16px; margin-bottom: 15px;">
-//                 ✅ Grabación en progreso
-//               </p>
-//               <div style="background: #d1fae5; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
-//                 <strong style="color: #065f46;">Se está grabando:</strong>
-//                 <ul style="color: #047857; list-style: none; padding: 0; margin-top: 10px;">
-//                   <li>🎵 Audio de la canción</li>
-//                   <li>📝 Letras sincronizadas</li>
-//                   <li>✨ Animaciones visuales</li>
-//                 </ul>
-//               </div>
-//               <div style="background: #fef3c7; padding: 12px; border-radius: 8px;">
-//                 <p style="color: #92400e; margin: 0; font-size: 14px;">
-//                   ⚠️ El audio se escucha normalmente mientras grabas
-//                 </p>
-//               </div>
-//               <p style="color: #6b7280; font-size: 13px; margin-top: 10px;">
-//                 Presiona el botón rojo STOP cuando termines
-//               </p>
-//             </div>
-//           `,
-//           confirmButtonText: '👍 Entendido',
-//           confirmButtonColor: '#ec4899',
-//           timer: 5000,
+//         // Asegurar que el audio siga reproduciéndose
+//         if (wasPlaying) {
+//           audioElement.currentTime = currentTime;
+//           const playPromise = audioElement.play();
+//           if (playPromise !== undefined) {
+//             playPromise.catch(err => console.log('Error al reanudar audio:', err));
+//           }
+//         }
+
+//         // Toast notification que NO pausa el audio
+//         const toast = Swal.mixin({
+//           toast: true,
+//           position: 'top-end',
+//           showConfirmButton: false,
+//           timer: 3000,
 //           timerProgressBar: true,
-//           didOpen: () => {
-//             // Asegurar que el audio NO se pause cuando se abre el modal
-//             if (audioElement.paused) {
-//               audioElement.play().catch(err => console.log('Error al reanudar:', err));
-//             }
+//           didOpen: (toast) => {
+//             toast.addEventListener('mouseenter', Swal.stopTimer);
+//             toast.addEventListener('mouseleave', Swal.resumeTimer);
 //           }
 //         });
 
+//         toast.fire({
+//           icon: 'success',
+//           title: '🎤 Grabando Karaoke',
+//           text: 'Audio y letras sincronizadas'
+//         });
+
 //       } else {
+//         // Código para desktop (captura de pantalla)
 //         const displayStream = await navigator.mediaDevices.getDisplayMedia({
 //           video: {
 //             width: { ideal: 1920 },
@@ -479,25 +487,40 @@
 //         mediaRecorderRef.current = mediaRecorder;
 //         setIsRecording(true);
 
-//         // Mostrar alerta SIN pausar el audio
-//         Swal.fire({
+//         // Asegurar que el audio siga reproduciéndose
+//         if (wasPlaying) {
+//           audioElement.currentTime = currentTime;
+//           const playPromise = audioElement.play();
+//           if (playPromise !== undefined) {
+//             playPromise.catch(err => console.log('Error al reanudar audio:', err));
+//           }
+//         }
+
+//         // Toast notification
+//         const toast = Swal.mixin({
+//           toast: true,
+//           position: 'top-end',
+//           showConfirmButton: false,
+//           timer: 3000,
+//           timerProgressBar: true
+//         });
+
+//         toast.fire({
 //           icon: 'success',
 //           title: '✅ Grabación Iniciada',
-//           text: 'Haz clic en STOP cuando termines',
-//           confirmButtonColor: '#ec4899',
-//           timer: 3000,
-//           timerProgressBar: true,
-//           didOpen: () => {
-//             // Asegurar que el audio NO se pause cuando se abre el modal
-//             if (audioElement.paused) {
-//               audioElement.play().catch(err => console.log('Error al reanudar:', err));
-//             }
-//           }
+//           text: 'Haz clic en STOP cuando termines'
 //         });
 //       }
 
 //     } catch (err) {
 //       console.error('Error al grabar:', err);
+      
+//       // Restaurar reproducción en caso de error
+//       if (wasPlaying) {
+//         audioElement.currentTime = currentTime;
+//         audioElement.play().catch(e => console.log('Error al restaurar:', e));
+//       }
+      
 //       await Swal.fire({
 //         icon: 'error',
 //         title: '❌ Error al Grabar',
@@ -793,8 +816,6 @@
 
 
 
-
-
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Maximize2, Minimize2, Plus, X, Palette, Video, StopCircle } from 'lucide-react';
@@ -857,13 +878,19 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const animationFrameRef = useRef<number | undefined>(undefined);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
 
   const isMobile = (): boolean => {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
            (window.innerWidth <= 768);
   };
+
+  // Asegurar crossOrigin en el audio element
+  useEffect(() => {
+    const audioElement = document.querySelector('audio') as HTMLAudioElement;
+    if (audioElement) {
+      audioElement.crossOrigin = 'anonymous';
+    }
+  }, [currentSong]);
 
   useEffect(() => {
     if (!isMaximized) {
@@ -1067,12 +1094,9 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       return;
     }
 
-    // Guardar el estado de reproducción
-    const wasPlaying = !audioElement.paused;
-    const currentTime = audioElement.currentTime;
-
     try {
       if (isMobile()) {
+        // Crear canvas para grabación
         const recordCanvas = document.createElement('canvas');
         recordCanvas.width = 1920;
         recordCanvas.height = 1080;
@@ -1080,43 +1104,43 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 
         const canvasStream = recordCanvas.captureStream(30);
 
-        let audioContext: AudioContext;
-        let audioDestination: MediaStreamAudioDestinationNode;
-
-        // Crear o reutilizar AudioContext
-        if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-          audioContext = new AudioContext();
-          audioContextRef.current = audioContext;
+        // NUEVA SOLUCIÓN: Capturar audio directamente del navegador
+        let audioStream: MediaStream;
+        
+        try {
+          // Intentar capturar audio del sistema (solo algunos navegadores)
+          audioStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false
+            }
+          });
+        } catch (err) {
+          console.log('No se pudo capturar audio del sistema, usando método alternativo');
           
-          // Crear source solo si no existe
-          if (!audioSourceRef.current) {
-            audioSourceRef.current = audioContext.createMediaElementSource(audioElement);
+          // Método alternativo: usar AudioContext con crossOrigin
+          audioElement.crossOrigin = 'anonymous';
+          
+          const audioContext = new AudioContext();
+          const source = audioContext.createMediaElementSource(audioElement);
+          const destination = audioContext.createMediaStreamDestination();
+          
+          // Conectar para grabar Y para escuchar
+          source.connect(destination);
+          source.connect(audioContext.destination);
+          
+          if (audioContext.state === 'suspended') {
+            await audioContext.resume();
           }
           
-          audioDestination = audioContext.createMediaStreamDestination();
-          
-          // Conectar el audio source al destino Y a los speakers
-          audioSourceRef.current.connect(audioDestination);
-          audioSourceRef.current.connect(audioContext.destination);
-        } else {
-          audioContext = audioContextRef.current;
-          audioDestination = audioContext.createMediaStreamDestination();
-          
-          // Reconectar el source existente
-          if (audioSourceRef.current) {
-            audioSourceRef.current.connect(audioDestination);
-            audioSourceRef.current.connect(audioContext.destination);
-          }
+          audioStream = destination.stream;
         }
 
-        // Reanudar AudioContext si está suspendido
-        if (audioContext.state === 'suspended') {
-          await audioContext.resume();
-        }
-
+        // Combinar streams
         const combinedStream = new MediaStream([
           ...canvasStream.getVideoTracks(),
-          ...audioDestination.stream.getAudioTracks()
+          ...audioStream.getAudioTracks()
         ]);
 
         let mimeType = 'video/webm;codecs=vp8,opus';
@@ -1147,20 +1171,21 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
           a.click();
           URL.revokeObjectURL(url);
 
-          combinedStream.getTracks().forEach(track => track.stop());
+          canvasStream.getTracks().forEach(track => track.stop());
+          audioStream.getTracks().forEach(track => track.stop());
 
-          Swal.fire({
-            icon: 'success',
-            title: '✅ Video Guardado',
-            html: `
-              <p>Tu karaoke se ha descargado exitosamente</p>
-              <p style="color: #6b7280; font-size: 14px; margin-top: 10px;">
-                <strong>${currentSong.titulo}</strong>
-              </p>
-            `,
-            confirmButtonColor: '#ec4899',
+          const toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
             timer: 3000,
             timerProgressBar: true
+          });
+
+          toast.fire({
+            icon: 'success',
+            title: '✅ Video Guardado',
+            text: `${currentSong.titulo}`
           });
         };
 
@@ -1168,36 +1193,22 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
         mediaRecorderRef.current = mediaRecorder;
         setIsRecording(true);
 
-        // Asegurar que el audio siga reproduciéndose
-        if (wasPlaying) {
-          audioElement.currentTime = currentTime;
-          const playPromise = audioElement.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(err => console.log('Error al reanudar audio:', err));
-          }
-        }
-
-        // Toast notification que NO pausa el audio
         const toast = Swal.mixin({
           toast: true,
           position: 'top-end',
           showConfirmButton: false,
-          timer: 3000,
-          timerProgressBar: true,
-          didOpen: (toast) => {
-            toast.addEventListener('mouseenter', Swal.stopTimer);
-            toast.addEventListener('mouseleave', Swal.resumeTimer);
-          }
+          timer: 2500,
+          timerProgressBar: true
         });
 
         toast.fire({
           icon: 'success',
-          title: '🎤 Grabando Karaoke',
-          text: 'Audio y letras sincronizadas'
+          title: '🎤 Grabando',
+          text: 'Audio + Letras'
         });
 
       } else {
-        // Código para desktop (captura de pantalla)
+        // DESKTOP: Captura de pantalla con audio
         const displayStream = await navigator.mediaDevices.getDisplayMedia({
           video: {
             width: { ideal: 1920 },
@@ -1216,7 +1227,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
           const retryResult = await Swal.fire({
             icon: 'warning',
             title: '⚠️ Sin audio',
-            text: 'No se capturó el audio. Asegúrate de marcar "Compartir audio de la pestaña"',
+            text: 'No se capturó el audio. Marca "Compartir audio de la pestaña"',
             showCancelButton: true,
             confirmButtonText: '🔄 Reintentar',
             cancelButtonText: 'Cancelar',
@@ -1265,11 +1276,16 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
           
           displayStream.getTracks().forEach(track => track.stop());
 
-          Swal.fire({
-            icon: 'success',
-            title: '✅ Video Guardado',
-            confirmButtonColor: '#ec4899',
+          const toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
             timer: 3000
+          });
+
+          toast.fire({
+            icon: 'success',
+            title: '✅ Video Guardado'
           });
         };
 
@@ -1284,44 +1300,33 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
         mediaRecorderRef.current = mediaRecorder;
         setIsRecording(true);
 
-        // Asegurar que el audio siga reproduciéndose
-        if (wasPlaying) {
-          audioElement.currentTime = currentTime;
-          const playPromise = audioElement.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(err => console.log('Error al reanudar audio:', err));
-          }
-        }
-
-        // Toast notification
         const toast = Swal.mixin({
           toast: true,
           position: 'top-end',
           showConfirmButton: false,
-          timer: 3000,
-          timerProgressBar: true
+          timer: 3000
         });
 
         toast.fire({
           icon: 'success',
-          title: '✅ Grabación Iniciada',
-          text: 'Haz clic en STOP cuando termines'
+          title: '✅ Grabando',
+          text: 'Presiona STOP al terminar'
         });
       }
 
     } catch (err) {
       console.error('Error al grabar:', err);
       
-      // Restaurar reproducción en caso de error
-      if (wasPlaying) {
-        audioElement.currentTime = currentTime;
-        audioElement.play().catch(e => console.log('Error al restaurar:', e));
-      }
-      
       await Swal.fire({
         icon: 'error',
-        title: '❌ Error al Grabar',
-        text: 'No se pudo iniciar la grabación. Verifica los permisos del navegador.',
+        title: '❌ Error',
+        html: `
+          <p>No se pudo iniciar la grabación</p>
+          <p style="font-size: 12px; color: #666; margin-top: 10px;">
+            En móviles, se requiere permiso de micrófono.<br/>
+            El audio de la canción se mezclará con el micrófono.
+          </p>
+        `,
         confirmButtonColor: '#ec4899'
       });
     }
