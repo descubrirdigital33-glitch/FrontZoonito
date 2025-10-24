@@ -243,11 +243,11 @@
 //       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 //       const time = Date.now() * 0.0005;
-//       ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-//       for (let i = 0; i < 60; i++) {
+//       ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+//       for (let i = 0; i < 80; i++) {
 //         const x = (Math.sin(time * 0.5 + i * 0.8) * 0.3 + 0.5) * canvas.width;
 //         const y = (Math.cos(time * 0.3 + i * 0.5) * 0.3 + 0.5) * canvas.height;
-//         const size = Math.sin(time * 2 + i) * 4 + 6;
+//         const size = Math.sin(time * 2 + i) * 8 + 12;
 //         ctx.beginPath();
 //         ctx.arc(x, y, size, 0, Math.PI * 2);
 //         ctx.fill();
@@ -352,7 +352,7 @@
 //       ]);
 
 //       const mediaRecorder = new MediaRecorder(combinedStream, {
-//         mimeType: 'video/webm;codecs=vp9,opus',
+//         mimeType: 'video/webm;codecs=h264,opus',
 //         videoBitsPerSecond: 5000000,
 //         audioBitsPerSecond: 320000
 //       });
@@ -368,9 +368,7 @@
 //       mediaRecorder.onstop = async () => {
 //         const webmBlob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
         
-//         const mp4Blob = await convertWebMToMP4(webmBlob);
-        
-//         const url = URL.createObjectURL(mp4Blob);
+//         const url = URL.createObjectURL(webmBlob);
 //         const a = document.createElement('a');
 //         a.href = url;
 //         a.download = `karaoke-${currentSong.titulo}-${Date.now()}.mp4`;
@@ -428,31 +426,6 @@
 //         confirmButtonColor: '#ec4899'
 //       });
 //     }
-//   };
-
-//   const convertWebMToMP4 = async (webmBlob: Blob): Promise<Blob> => {
-//     return new Promise((resolve) => {
-//       const reader = new FileReader();
-//       reader.onload = () => {
-//         const arrayBuffer = reader.result as ArrayBuffer;
-//         const uint8Array = new Uint8Array(arrayBuffer);
-        
-//         const mp4Header = new Uint8Array([
-//           0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70,
-//           0x69, 0x73, 0x6F, 0x6D, 0x00, 0x00, 0x02, 0x00,
-//           0x69, 0x73, 0x6F, 0x6D, 0x69, 0x73, 0x6F, 0x32,
-//           0x6D, 0x70, 0x34, 0x31
-//         ]);
-        
-//         const combinedArray = new Uint8Array(mp4Header.length + uint8Array.length);
-//         combinedArray.set(mp4Header);
-//         combinedArray.set(uint8Array, mp4Header.length);
-        
-//         const mp4Blob = new Blob([combinedArray], { type: 'video/mp4' });
-//         resolve(mp4Blob);
-//       };
-//       reader.readAsArrayBuffer(webmBlob);
-//     });
 //   };
 
 //   const stopRecording = () => {
@@ -740,7 +713,6 @@
 
 
 
-
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Maximize2, Minimize2, Plus, X, Palette, Video, StopCircle } from 'lucide-react';
@@ -773,15 +745,15 @@ interface KaraokeProps {
 }
 
 const colorThemes = [
-  { name: 'Purple-Pink', colors: ['#6b21a8', '#ec4899', '#4c1d95'], gradient: 'from-purple-900/98 via-pink-900/98 to-indigo-900/98' },
-  { name: 'Blue-Cyan', colors: ['#0c4a6e', '#06b6d4', '#164e63'], gradient: 'from-blue-900/98 via-cyan-800/98 to-teal-900/98' },
-  { name: 'Blue-Purple', colors: ['#1e3a8a', '#7c3aed', '#312e81'], gradient: 'from-blue-900/98 via-purple-800/98 to-indigo-900/98' },
-  { name: 'Teal-Blue', colors: ['#134e4a', '#0891b2', '#075985'], gradient: 'from-teal-900/98 via-cyan-800/98 to-blue-900/98' },
-  { name: 'Ocean', colors: ['#1e40af', '#0ea5e9', '#0284c7'], gradient: 'from-blue-800/98 via-sky-700/98 to-blue-900/98' },
-  { name: 'Sunset', colors: ['#fb923c', '#f97316', '#ea580c'], gradient: 'from-orange-500/98 via-orange-600/98 to-orange-700/98' },
-  { name: 'Golden', colors: ['#fbbf24', '#f59e0b', '#d97706'], gradient: 'from-yellow-500/98 via-amber-500/98 to-yellow-600/98' },
-  { name: 'Emerald', colors: ['#10b981', '#059669', '#047857'], gradient: 'from-emerald-500/98 via-emerald-600/98 to-green-700/98' },
-  { name: 'Rose', colors: ['#fb7185', '#f43f5e', '#e11d48'], gradient: 'from-rose-400/98 via-rose-500/98 to-rose-600/98' },
+  { name: 'Deep Blue', colors: ['#0a1929', '#1e3a8a', '#0c4a6e'], gradient: 'from-slate-950/98 via-blue-950/98 to-blue-900/98' },
+  { name: 'Navy Ocean', colors: ['#0f172a', '#1e40af', '#075985'], gradient: 'from-slate-950/98 via-blue-900/98 to-cyan-900/98' },
+  { name: 'Dark Crimson', colors: ['#450a0a', '#7f1d1d', '#991b1b'], gradient: 'from-red-950/98 via-red-900/98 to-rose-900/98' },
+  { name: 'Blood Moon', colors: ['#1a0a0a', '#7f1d1d', '#450a0a'], gradient: 'from-black/98 via-red-950/98 to-red-900/98' },
+  { name: 'Midnight Blue', colors: ['#020617', '#0c4a6e', '#164e63'], gradient: 'from-slate-950/98 via-blue-900/98 to-teal-900/98' },
+  { name: 'Deep Purple', colors: ['#1e1b4b', '#4c1d95', '#581c87'], gradient: 'from-indigo-950/98 via-purple-900/98 to-purple-800/98' },
+  { name: 'Dark Teal', colors: ['#042f2e', '#134e4a', '#115e59'], gradient: 'from-slate-950/98 via-teal-900/98 to-teal-800/98' },
+  { name: 'Burgundy Night', colors: ['#450a0a', '#881337', '#9f1239'], gradient: 'from-red-950/98 via-rose-900/98 to-pink-900/98' },
+  { name: 'Abyss Blue', colors: ['#020617', '#1e3a8a', '#312e81'], gradient: 'from-slate-950/98 via-blue-900/98 to-indigo-900/98' },
 ];
 
 const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = false }) => {
@@ -795,7 +767,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
   const [isRecording, setIsRecording] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
   const activeLineRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -804,12 +776,12 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
   const recordedChunksRef = useRef<Blob[]>([]);
   const animationFrameRef = useRef<number | undefined>(undefined);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const backgroundColorRef = useRef({ r: 107, g: 33, b: 168 });
-  const targetColorRef = useRef({ r: 107, g: 33, b: 168 });
+  const backgroundColorRef = useRef({ r: 10, g: 25, b: 41 });
+  const targetColorRef = useRef({ r: 10, g: 25, b: 41 });
 
   const isMobile = (): boolean => {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-           (window.innerWidth <= 768);
+      (window.innerWidth <= 768);
   };
 
   useEffect(() => {
@@ -827,7 +799,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 
     const handleMouseMove = () => {
       setShowControls(true);
-      
+
       if (hideControlsTimeoutRef.current) {
         clearTimeout(hideControlsTimeoutRef.current);
       }
@@ -838,7 +810,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
     };
 
     window.addEventListener('mousemove', handleMouseMove);
-    
+
     hideControlsTimeoutRef.current = setTimeout(() => {
       setShowControls(false);
     }, 3000);
@@ -889,7 +861,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
     }> = [];
 
     const theme = colorThemes[currentTheme];
-    
+
     for (let i = 0; i < 50; i++) {
       particles.push({
         x: Math.random() * canvas.width,
@@ -957,13 +929,35 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 
     const theme = colorThemes[currentTheme];
     const themeColors = theme.colors.map(hexToRgb);
-    
+
     let colorChangeTimer = 0;
     const colorChangeDuration = 180;
 
+    const particles: Array<{
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      size: number;
+      color: string;
+      alpha: number;
+    }> = [];
+
+    for (let i = 0; i < 120; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: (Math.random() - 0.5) * 1.5,
+        size: Math.random() * 4 + 1,
+        color: theme.colors[Math.floor(Math.random() * theme.colors.length)],
+        alpha: Math.random() * 0.6 + 0.2,
+      });
+    }
+
     const drawLyrics = () => {
       colorChangeTimer++;
-      
+
       if (colorChangeTimer >= colorChangeDuration) {
         targetColorRef.current = themeColors[Math.floor(Math.random() * themeColors.length)];
         colorChangeTimer = 0;
@@ -973,24 +967,56 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 
       const currentColor = backgroundColorRef.current;
       const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-      
+
       const r = Math.round(currentColor.r);
       const g = Math.round(currentColor.g);
       const b = Math.round(currentColor.b);
-      
+
       gradient.addColorStop(0, `rgb(${r}, ${g}, ${b})`);
       gradient.addColorStop(0.5, `rgb(${Math.round(r * 0.8)}, ${Math.round(g * 1.2)}, ${Math.round(b * 1.1)})`);
       gradient.addColorStop(1, `rgb(${Math.round(r * 0.6)}, ${Math.round(g * 0.9)}, ${Math.round(b * 1.3)})`);
-      
+
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      particles.forEach((p, i) => {
+        p.x += p.vx;
+        p.y += p.vy;
+
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        const alpha = Math.floor(p.alpha * 255).toString(16).padStart(2, '0');
+        ctx.fillStyle = p.color + alpha;
+        ctx.fill();
+
+        particles.forEach((p2, j) => {
+          if (i !== j) {
+            const dx = p.x - p2.x;
+            const dy = p.y - p2.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 150) {
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(p2.x, p2.y);
+              const lineAlpha = Math.floor((1 - dist / 150) * 80).toString(16).padStart(2, '0');
+              ctx.strokeStyle = p.color + lineAlpha;
+              ctx.lineWidth = 0.8;
+              ctx.stroke();
+            }
+          }
+        });
+      });
+
       const time = Date.now() * 0.0005;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-      for (let i = 0; i < 80; i++) {
-        const x = (Math.sin(time * 0.5 + i * 0.8) * 0.3 + 0.5) * canvas.width;
-        const y = (Math.cos(time * 0.3 + i * 0.5) * 0.3 + 0.5) * canvas.height;
-        const size = Math.sin(time * 2 + i) * 8 + 12;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+      for (let i = 0; i < 100; i++) {
+        const x = (Math.sin(time * 0.5 + i * 0.8) * 0.4 + 0.5) * canvas.width;
+        const y = (Math.cos(time * 0.3 + i * 0.5) * 0.4 + 0.5) * canvas.height;
+        const size = Math.sin(time * 2 + i) * 10 + 15;
         ctx.beginPath();
         ctx.arc(x, y, size, 0, Math.PI * 2);
         ctx.fill();
@@ -1041,7 +1067,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 
   const startRecording = async () => {
     const audioElement = document.querySelector('audio') as HTMLAudioElement;
-    
+
     if (!audioElement || !currentSong) {
       await Swal.fire({
         icon: 'error',
@@ -1071,22 +1097,22 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       const canvasStream = recordCanvas.captureStream(30);
 
       audioElement.crossOrigin = 'anonymous';
-      
+
       if (!audioContextRef.current) {
         audioContextRef.current = new AudioContext();
       }
-      
+
       const audioContext = audioContextRef.current;
       const source = audioContext.createMediaElementSource(audioElement);
       const destination = audioContext.createMediaStreamDestination();
-      
+
       source.connect(destination);
       source.connect(audioContext.destination);
-      
+
       if (audioContext.state === 'suspended') {
         await audioContext.resume();
       }
-      
+
       const audioStream = destination.stream;
 
       const combinedStream = new MediaStream([
@@ -1095,8 +1121,8 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       ]);
 
       const mediaRecorder = new MediaRecorder(combinedStream, {
-        mimeType: 'video/webm;codecs=h264,opus',
-        videoBitsPerSecond: 5000000,
+        mimeType: 'video/webm;codecs=vp9,opus',
+        videoBitsPerSecond: 8000000,
         audioBitsPerSecond: 320000
       });
 
@@ -1110,7 +1136,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 
       mediaRecorder.onstop = async () => {
         const webmBlob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-        
+
         const url = URL.createObjectURL(webmBlob);
         const a = document.createElement('a');
         a.href = url;
@@ -1156,7 +1182,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 
     } catch (err) {
       console.error('Error al grabar:', err);
-      
+
       await Swal.fire({
         icon: 'error',
         title: '❌ Error',
@@ -1269,9 +1295,8 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       <div className={inlineMode ? 'inline-block' : 'fixed top-4 left-4 z-40'}>
         <button
           onClick={toggleKaraoke}
-          className={`bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white p-3 rounded-full shadow-lg hover:scale-110 transition-all duration-300 flex items-center gap-2 ${
-            inlineMode ? 'ml-2' : ''
-          }`}
+          className={`bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white p-3 rounded-full shadow-lg hover:scale-110 transition-all duration-300 flex items-center gap-2 ${inlineMode ? 'ml-2' : ''
+            }`}
           title="Activar Karaoke"
         >
           <MicOff size={24} />
@@ -1308,9 +1333,8 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
         />
 
         <div className="relative z-10 h-full flex flex-col">
-          <div className={`flex justify-between items-center p-4 border-b border-white/20 bg-black/30 transition-all duration-300 ${
-            isMaximized && !showControls ? 'opacity-0 pointer-events-none' : 'opacity-100'
-          }`}>
+          <div className={`flex justify-between items-center p-4 border-b border-white/20 bg-black/30 transition-all duration-300 ${isMaximized && !showControls ? 'opacity-0 pointer-events-none' : 'opacity-100'
+            }`}>
             <div className="flex items-center gap-3">
               <Mic className="text-pink-400" size={24} />
               <div>
@@ -1362,9 +1386,8 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
             </div>
           </div>
 
-          <div className={`flex-1 overflow-hidden p-4 transition-all duration-500 ${
-            isMaximized && !showControls ? 'pt-8' : ''
-          }`}>
+          <div className={`flex-1 overflow-hidden p-4 transition-all duration-500 ${isMaximized && !showControls ? 'pt-8' : ''
+            }`}>
             {loading ? (
               <div className="flex flex-col items-center justify-center h-full">
                 <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-pink-500 border-solid"></div>
@@ -1402,10 +1425,9 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
                     ref={index === currentLine ? activeLineRef : null}
                     className={`
                       text-center py-2 px-4 rounded-lg transition-all duration-300
-                      ${
-                        index === currentLine
-                          ? 'text-3xl md:text-4xl font-bold text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] scale-110'
-                          : index === currentLine + 1
+                      ${index === currentLine
+                        ? 'text-3xl md:text-4xl font-bold text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)] scale-110'
+                        : index === currentLine + 1
                           ? 'text-xl md:text-2xl text-white/80'
                           : 'text-lg text-white/40'
                       }
@@ -1421,8 +1443,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 
         {isRecording && (
           <div className="absolute top-2 right-2 z-20 flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full animate-pulse">
-            <div className="w-2 h-2 bg-white rounded-full"></div>
-            <span className="text-xs font-bold">REC</span>
+            <div className="w-2 h-2 bg-white rounded-full"></div><span className="text-xs font-bold">REC</span>
           </div>
         )}
       </div>
