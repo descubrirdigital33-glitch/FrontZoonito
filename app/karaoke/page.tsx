@@ -760,8 +760,6 @@
 
 // export default Karaoke;
 
-
-
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Maximize2, Minimize2, Plus, X, Palette, Video, StopCircle } from 'lucide-react';
@@ -857,7 +855,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
   useEffect(() => {
     const loadFFmpeg = async () => {
       const ffmpeg = ffmpegRef.current;
-      
+
       try {
         const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
         await ffmpeg.load({
@@ -1140,7 +1138,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
   }, [isRecording, currentLine, lyrics, currentTheme]);
 
   const convertWebMToMP4 = async (webmBlob: Blob, fileName: string): Promise<void> => {
-    const loadingAlert = Swal.fire({
+    Swal.fire({
       title: '🎬 Convirtiendo a MP4',
       html: `
         <div class="flex flex-col items-center gap-3">
@@ -1173,7 +1171,8 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       ]);
 
       const data = await ffmpeg.readFile('output.mp4');
-      const mp4Blob = new Blob([data], { type: 'video/mp4' });
+      const buffer = new Uint8Array(data as unknown as ArrayBuffer);
+      const mp4Blob = new Blob([buffer], { type: 'video/mp4' });
 
       const url = URL.createObjectURL(mp4Blob);
       const a = document.createElement('a');
@@ -1192,7 +1191,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       await ffmpeg.deleteFile('input.webm');
       await ffmpeg.deleteFile('output.mp4');
 
-      loadingAlert.close();
+      Swal.close();
 
       const toast = Swal.mixin({
         toast: true,
@@ -1209,7 +1208,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       });
 
     } catch (err) {
-      loadingAlert.close();
+      Swal.close();
       console.error('Error convirtiendo a MP4:', err);
 
       await Swal.fire({
@@ -1294,8 +1293,8 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=h264,opus')
         ? 'video/webm;codecs=h264,opus'
         : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
-        ? 'video/webm;codecs=vp8,opus'
-        : 'video/webm';
+          ? 'video/webm;codecs=vp8,opus'
+          : 'video/webm';
 
       const mediaRecorder = new MediaRecorder(combinedStream, {
         mimeType: mimeType,
@@ -1515,7 +1514,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
               {!isRecording ? (
                 <button
                   onClick={startRecording}
-                  className="text-white hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-white/10"
+                  className="text-white hover:text-red-400transition-colors p-2 rounded-lg hover:bg-white/10"
                   title="Iniciar grabación MP4"
                   disabled={!ffmpegLoaded}
                 >
