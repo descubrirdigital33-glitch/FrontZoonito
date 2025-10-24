@@ -760,8 +760,6 @@
 
 // export default Karaoke;
 
-
-
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Maximize2, Minimize2, Plus, X, Palette, Video, StopCircle } from 'lucide-react';
@@ -1147,14 +1145,15 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 
 
 
+
+
   const convertWebMToMP4 = async (webmBlob: Blob, fileName: string): Promise<void> => {
     Swal.fire({
       title: '🎬 Convirtiendo a MP4',
       html: `
       <div class="flex flex-col items-center gap-3">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-pink-500"></div>
-        <p class="text-sm text-gray-600">Esto puede tomar unos minutos...</p>
-        <p class="text-xs text-gray-400" id="progress-text">Procesando video HD</p>
+        <p class="text-sm text-gray-600" id="progress-text">Iniciando conversión...</p>
       </div>
     `,
       allowOutsideClick: false,
@@ -1171,45 +1170,32 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
         throw new Error('FFmpeg no está inicializado');
       }
 
-      // Agregar logs de progreso
-      ffmpeg.on('log', ({ message }) => {
-        console.log('FFmpeg:', message);
-        const progressEl = document.getElementById('progress-text');
-        if (progressEl) {
-          progressEl.textContent = message.substring(0, 50);
-        }
-      });
-
       ffmpeg.on('progress', ({ progress }) => {
-        console.log(`Progreso: ${(progress * 100).toFixed(2)}%`);
         const progressEl = document.getElementById('progress-text');
-        if (progressEl) {
-          progressEl.textContent = `Progreso: ${(progress * 100).toFixed(0)}%`;
+        if (progressEl && progress > 0) {
+          progressEl.textContent = `Convirtiendo: ${(progress * 100).toFixed(0)}%`;
         }
       });
 
-      console.log('Escribiendo archivo WebM...');
       await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
-      console.log('Archivo WebM escrito correctamente');
 
-      console.log('Iniciando conversión a MP4...');
+      // Configuración MUY rápida - sacrifica calidad por velocidad
       await ffmpeg.exec([
         '-i', 'input.webm',
         '-c:v', 'libx264',
-        '-preset', 'ultrafast',  // <- CAMBIADO: más rápido
-        '-crf', '28',            // <- CAMBIADO: más compresión
+        '-preset', 'ultrafast',
+        '-crf', '32',              // Mayor compresión
+        '-vf', 'scale=854:480',    // Resolución más baja (480p)
+        '-r', '24',                // 24 fps en lugar de 30
         '-c:a', 'aac',
-        '-b:a', '128k',          // <- CAMBIADO: menos bitrate
+        '-b:a', '96k',
+        '-ac', '1',                // Mono en lugar de estéreo
         '-movflags', '+faststart',
-        '-y',                    // <- AGREGADO: sobrescribir sin preguntar
+        '-y',
         'output.mp4'
       ]);
-      console.log('Conversión completada');
 
-      console.log('Leyendo archivo MP4...');
       const data = await ffmpeg.readFile('output.mp4');
-      console.log('Archivo MP4 leído, tamaño:', data.length);
-
       const buffer = new Uint8Array(data as unknown as ArrayBuffer);
       const mp4Blob = new Blob([buffer], { type: 'video/mp4' });
 
@@ -1227,7 +1213,6 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
         URL.revokeObjectURL(url);
       }, 100);
 
-      console.log('Limpiando archivos temporales...');
       await ffmpeg.deleteFile('input.webm');
       await ffmpeg.deleteFile('output.mp4');
 
@@ -1244,7 +1229,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       toast.fire({
         icon: 'success',
         title: '✅ Video MP4 Guardado',
-        html: `<small>${fileName.replace('.webm', '.mp4')}</small><br><small style="color: #22c55e;">Listo para compartir en WhatsApp</small>`
+        html: `<small>${fileName.replace('.webm', '.mp4')}</small><br><small style="color: #22c55e;">Listo para WhatsApp</small>`
       });
 
     } catch (err) {
