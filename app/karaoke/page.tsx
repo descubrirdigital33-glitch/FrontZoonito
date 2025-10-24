@@ -1644,4 +1644,3 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 };
 
 export default Karaoke;
-
