@@ -847,7 +847,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
   const audioContextRef = useRef<AudioContext | null>(null);
   const backgroundColorRef = useRef<RGB>({ r: 30, g: 27, b: 75 });
   const targetColorRef = useRef<RGB>({ r: 30, g: 27, b: 75 });
-  const ffmpegRef = useRef<FFmpeg>(new FFmpeg());
+  const ffmpegRef = useRef<FFmpeg | null>(null);
 
   const isMobile = (): boolean => {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
@@ -856,6 +856,12 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 
   useEffect(() => {
     const loadFFmpeg = async () => {
+      if (typeof window === 'undefined') return; // Evita ejecución en servidor
+
+      if (!ffmpegRef.current) {
+        ffmpegRef.current = new FFmpeg(); // Crear instancia solo en cliente
+      }
+
       const ffmpeg = ffmpegRef.current;
 
       try {
@@ -1139,16 +1145,18 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
     drawLyrics();
   }, [isRecording, currentLine, lyrics, currentTheme]);
 
+
+
   const convertWebMToMP4 = async (webmBlob: Blob, fileName: string): Promise<void> => {
     Swal.fire({
       title: '🎬 Convirtiendo a MP4',
       html: `
-        <div class="flex flex-col items-center gap-3">
-          <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-pink-500"></div>
-          <p class="text-sm text-gray-600">Esto puede tomar unos minutos...</p>
-          <p class="text-xs text-gray-400">Procesando video HD</p>
-        </div>
-      `,
+      <div class="flex flex-col items-center gap-3">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-pink-500"></div>
+        <p class="text-sm text-gray-600">Esto puede tomar unos minutos...</p>
+        <p class="text-xs text-gray-400">Procesando video HD</p>
+      </div>
+    `,
       allowOutsideClick: false,
       showConfirmButton: false,
       didOpen: () => {
@@ -1158,6 +1166,10 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 
     try {
       const ffmpeg = ffmpegRef.current;
+
+      if (!ffmpeg) { // <- AGREGAR ESTA VERIFICACIÓN
+        throw new Error('FFmpeg no está inicializado');
+      }
 
       await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
 
