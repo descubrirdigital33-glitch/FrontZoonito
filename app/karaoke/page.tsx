@@ -762,11 +762,12 @@
 
 
 
-
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Maximize2, Minimize2, Plus, X, Palette, Video, StopCircle } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
 interface LyricLine {
   time: number;
@@ -811,24 +812,16 @@ interface RGB {
 }
 
 const colorThemes = [
-  { name: 'Purple-Pink', colors: ['#6b21a8', '#ec4899', '#4c1d95'], gradient: 'from-purple-900/98 via-pink-900/98 to-indigo-900/98' },
-  { name: 'Blue-Cyan', colors: ['#0c4a6e', '#06b6d4', '#164e63'], gradient: 'from-blue-900/98 via-cyan-800/98 to-teal-900/98' },
-  { name: 'Blue-Purple', colors: ['#1e3a8a', '#7c3aed', '#312e81'], gradient: 'from-blue-900/98 via-purple-800/98 to-indigo-900/98' },
-  { name: 'Teal-Blue', colors: ['#134e4a', '#0891b2', '#075985'], gradient: 'from-teal-900/98 via-cyan-800/98 to-blue-900/98' },
-  { name: 'Ocean', colors: ['#1e40af', '#0ea5e9', '#0284c7'], gradient: 'from-blue-800/98 via-sky-700/98 to-blue-900/98' },
-  { name: 'Sunset', colors: ['#fb923c', '#f97316', '#ea580c'], gradient: 'from-orange-500/98 via-orange-600/98 to-orange-700/98' },
-  { name: 'Golden', colors: ['#fbbf24', '#f59e0b', '#d97706'], gradient: 'from-yellow-500/98 via-amber-500/98 to-yellow-600/98' },
-  { name: 'Emerald', colors: ['#10b981', '#059669', '#047857'], gradient: 'from-emerald-500/98 via-emerald-600/98 to-green-700/98' },
-  { name: 'Rose', colors: ['#fb7185', '#f43f5e', '#e11d48'], gradient: 'from-rose-400/98 via-rose-500/98 to-rose-600/98' },
-  { name: 'Deep Blue', colors: ['#0a1929', '#1e3a8a', '#0c4a6e'], gradient: 'from-slate-950/98 via-blue-950/98 to-blue-900/98' },
+  { name: 'Deep Purple', colors: ['#1e1b4b', '#4c1d95', '#581c87'], gradient: 'from-indigo-950/98 via-purple-900/98 to-purple-800/98' },
+  { name: 'Midnight Blue', colors: ['#020617', '#0c4a6e', '#164e63'], gradient: 'from-slate-950/98 via-blue-900/98 to-teal-900/98' },
   { name: 'Navy Ocean', colors: ['#0f172a', '#1e40af', '#075985'], gradient: 'from-slate-950/98 via-blue-900/98 to-cyan-900/98' },
+  { name: 'Dark Teal', colors: ['#042f2e', '#134e4a', '#115e59'], gradient: 'from-slate-950/98 via-teal-900/98 to-teal-800/98' },
+  { name: 'Abyss Blue', colors: ['#020617', '#1e3a8a', '#312e81'], gradient: 'from-slate-950/98 via-blue-900/98 to-indigo-900/98' },
   { name: 'Dark Crimson', colors: ['#450a0a', '#7f1d1d', '#991b1b'], gradient: 'from-red-950/98 via-red-900/98 to-rose-900/98' },
   { name: 'Blood Moon', colors: ['#1a0a0a', '#7f1d1d', '#450a0a'], gradient: 'from-black/98 via-red-950/98 to-red-900/98' },
-  { name: 'Midnight Blue', colors: ['#020617', '#0c4a6e', '#164e63'], gradient: 'from-slate-950/98 via-blue-900/98 to-teal-900/98' },
-  { name: 'Deep Purple', colors: ['#1e1b4b', '#4c1d95', '#581c87'], gradient: 'from-indigo-950/98 via-purple-900/98 to-purple-800/98' },
-  { name: 'Dark Teal', colors: ['#042f2e', '#134e4a', '#115e59'], gradient: 'from-slate-950/98 via-teal-900/98 to-teal-800/98' },
   { name: 'Burgundy Night', colors: ['#450a0a', '#881337', '#9f1239'], gradient: 'from-red-950/98 via-rose-900/98 to-pink-900/98' },
-  { name: 'Abyss Blue', colors: ['#020617', '#1e3a8a', '#312e81'], gradient: 'from-slate-950/98 via-blue-900/98 to-indigo-900/98' },
+  { name: 'Purple-Pink', colors: ['#6b21a8', '#ec4899', '#4c1d95'], gradient: 'from-purple-900/98 via-pink-900/98 to-indigo-900/98' },
+  { name: 'Blue-Purple', colors: ['#1e3a8a', '#7c3aed', '#312e81'], gradient: 'from-blue-900/98 via-purple-800/98 to-indigo-900/98' },
 ];
 
 const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = false }) => {
@@ -841,6 +834,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
   const [currentTheme, setCurrentTheme] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
   const hideControlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
@@ -851,13 +845,34 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
   const recordedChunksRef = useRef<Blob[]>([]);
   const animationFrameRef = useRef<number | undefined>(undefined);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const backgroundColorRef = useRef<RGB>({ r: 107, g: 33, b: 168 });
-  const targetColorRef = useRef<RGB>({ r: 107, g: 33, b: 168 });
+  const backgroundColorRef = useRef<RGB>({ r: 30, g: 27, b: 75 });
+  const targetColorRef = useRef<RGB>({ r: 30, g: 27, b: 75 });
+  const ffmpegRef = useRef<FFmpeg>(new FFmpeg());
 
   const isMobile = (): boolean => {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
       (window.innerWidth <= 768);
   };
+
+  useEffect(() => {
+    const loadFFmpeg = async () => {
+      const ffmpeg = ffmpegRef.current;
+      
+      try {
+        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
+        setFfmpegLoaded(true);
+        console.log('FFmpeg cargado correctamente');
+      } catch (err) {
+        console.error('Error cargando FFmpeg:', err);
+      }
+    };
+
+    loadFFmpeg();
+  }, []);
 
   useEffect(() => {
     const audioElement = document.querySelector('audio') as HTMLAudioElement;
@@ -1124,6 +1139,93 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
     drawLyrics();
   }, [isRecording, currentLine, lyrics, currentTheme]);
 
+  const convertWebMToMP4 = async (webmBlob: Blob, fileName: string): Promise<void> => {
+    const loadingAlert = Swal.fire({
+      title: '🎬 Convirtiendo a MP4',
+      html: `
+        <div class="flex flex-col items-center gap-3">
+          <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-pink-500"></div>
+          <p class="text-sm text-gray-600">Esto puede tomar unos minutos...</p>
+          <p class="text-xs text-gray-400">Procesando video HD</p>
+        </div>
+      `,
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    try {
+      const ffmpeg = ffmpegRef.current;
+
+      await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+
+      await ffmpeg.exec([
+        '-i', 'input.webm',
+        '-c:v', 'libx264',
+        '-preset', 'medium',
+        '-crf', '23',
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        '-movflags', '+faststart',
+        'output.mp4'
+      ]);
+
+      const data = await ffmpeg.readFile('output.mp4');
+      const mp4Blob = new Blob([data], { type: 'video/mp4' });
+
+      const url = URL.createObjectURL(mp4Blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = fileName.replace('.webm', '.mp4');
+
+      document.body.appendChild(a);
+      a.click();
+
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+
+      await ffmpeg.deleteFile('input.webm');
+      await ffmpeg.deleteFile('output.mp4');
+
+      loadingAlert.close();
+
+      const toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 4000,
+        timerProgressBar: true
+      });
+
+      toast.fire({
+        icon: 'success',
+        title: '✅ Video MP4 Guardado',
+        html: `<small>${fileName.replace('.webm', '.mp4')}</small><br><small style="color: #22c55e;">Listo para compartir en WhatsApp</small>`
+      });
+
+    } catch (err) {
+      loadingAlert.close();
+      console.error('Error convirtiendo a MP4:', err);
+
+      await Swal.fire({
+        icon: 'error',
+        title: '❌ Error en conversión',
+        html: `
+          <p>No se pudo convertir a MP4</p>
+          <p style="font-size: 12px; color: #666; margin-top: 10px;">
+            ${err instanceof Error ? err.message : 'Error desconocido'}
+          </p>
+        `,
+        confirmButtonColor: '#ec4899'
+      });
+    }
+  };
+
   const startRecording = async () => {
     const audioElement = document.querySelector('audio') as HTMLAudioElement;
 
@@ -1142,6 +1244,16 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
         icon: 'warning',
         title: '⚠️ Sin letras',
         text: 'Necesitas agregar letras para grabar el karaoke',
+        confirmButtonColor: '#ec4899'
+      });
+      return;
+    }
+
+    if (!ffmpegLoaded) {
+      await Swal.fire({
+        icon: 'info',
+        title: '⏳ Cargando conversor',
+        text: 'FFmpeg se está cargando, intenta en unos segundos...',
         confirmButtonColor: '#ec4899'
       });
       return;
@@ -1179,10 +1291,16 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
         ...audioStream.getAudioTracks()
       ]);
 
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=h264,opus')
+        ? 'video/webm;codecs=h264,opus'
+        : MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')
+        ? 'video/webm;codecs=vp8,opus'
+        : 'video/webm';
+
       const mediaRecorder = new MediaRecorder(combinedStream, {
-        mimeType: 'video/webm;codecs=vp9,opus',
-        videoBitsPerSecond: 8000000,
-        audioBitsPerSecond: 320000
+        mimeType: mimeType,
+        videoBitsPerSecond: 5000000,
+        audioBitsPerSecond: 192000
       });
 
       recordedChunksRef.current = [];
@@ -1194,57 +1312,14 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       };
 
       mediaRecorder.onstop = async () => {
-        const webmBlob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
 
-        const fileName = `karaoke-${currentSong.titulo.replace(/[^a-z0-9]/gi, '_')}-${Date.now()}.mp4`;
-
-        if (isMobile()) {
-          const url = URL.createObjectURL(webmBlob);
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = url;
-          a.download = fileName;
-          a.type = 'video/mp4';
-
-          document.body.appendChild(a);
-          a.click();
-
-          setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          }, 100);
-        } else {
-          const url = URL.createObjectURL(webmBlob);
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = url;
-          a.download = fileName;
-
-          document.body.appendChild(a);
-          a.click();
-
-          setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          }, 100);
-        }
+        const fileName = `karaoke-${currentSong.titulo.replace(/[^a-z0-9]/gi, '_')}-${Date.now()}.webm`;
 
         canvasStream.getTracks().forEach(track => track.stop());
         audioStream.getTracks().forEach(track => track.stop());
 
-        const toast = Swal.mixin({
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 3000,
-          timerProgressBar: true
-        });
-
-        toast.fire({
-          icon: 'success',
-          title: '✅ Video Guardado',
-          text: fileName
-        });
+        await convertWebMToMP4(blob, fileName);
       };
 
       mediaRecorder.start(100);
@@ -1274,7 +1349,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
         html: `
           <p>No se pudo iniciar la grabación</p>
           <p style="font-size: 12px; color: #666; margin-top: 10px;">
-            Error: ${err instanceof Error ? err.message : 'Desconocido'}
+            ${err instanceof Error ? err.message : 'Error desconocido'}
           </p>
         `,
         confirmButtonColor: '#ec4899'
@@ -1441,7 +1516,8 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
                 <button
                   onClick={startRecording}
                   className="text-white hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-white/10"
-                  title="Iniciar grabación"
+                  title="Iniciar grabación MP4"
+                  disabled={!ffmpegLoaded}
                 >
                   <Video size={20} />
                 </button>
@@ -1474,7 +1550,6 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
           <div className={`flex-1 overflow-hidden p-4 transition-all duration-500 ${isMaximized && !showControls ? 'pt-8' : ''
             }`}>
             {loading ? (
-
               <div className="flex flex-col items-center justify-center h-full">
                 <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-pink-500 border-solid"></div>
                 <p className="text-white mt-4">Cargando letras...</p>
@@ -1529,7 +1604,15 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 
         {isRecording && (
           <div className="absolute top-2 right-2 z-20 flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full animate-pulse">
-            <div className="w-2 h-2 bg-white rounded-full"></div><span className="text-xs font-bold">REC</span>
+            <div className="w-2 h-2 bg-white rounded-full"></div>
+            <span className="text-xs font-bold">REC</span>
+          </div>
+        )}
+
+        {!ffmpegLoaded && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-yellow-500/90 text-white px-4 py-2 rounded-full text-xs flex items-center gap-2">
+            <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-white"></div>
+            Cargando conversor MP4...
           </div>
         )}
       </div>
