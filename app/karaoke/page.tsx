@@ -60,13 +60,15 @@
 //   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 //   const recordedChunksRef = useRef<Blob[]>([]);
 //   const animationFrameRef = useRef<number | undefined>(undefined);
+//   const audioContextRef = useRef<AudioContext | null>(null);
+//   const backgroundColorRef = useRef({ r: 107, g: 33, b: 168 });
+//   const targetColorRef = useRef({ r: 107, g: 33, b: 168 });
 
 //   const isMobile = (): boolean => {
 //     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
 //            (window.innerWidth <= 768);
 //   };
 
-//   // Asegurar crossOrigin en el audio element
 //   useEffect(() => {
 //     const audioElement = document.querySelector('audio') as HTMLAudioElement;
 //     if (audioElement) {
@@ -105,6 +107,23 @@
 //       }
 //     };
 //   }, [isMaximized]);
+
+//   const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
+//     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+//     return result ? {
+//       r: parseInt(result[1], 16),
+//       g: parseInt(result[2], 16),
+//       b: parseInt(result[3], 16)
+//     } : { r: 0, g: 0, b: 0 };
+//   };
+
+//   const lerpColor = (current: { r: number; g: number; b: number }, target: { r: number; g: number; b: number }, speed: number) => {
+//     return {
+//       r: current.r + (target.r - current.r) * speed,
+//       g: current.g + (target.g - current.g) * speed,
+//       b: current.b + (target.b - current.b) * speed
+//     };
+//   };
 
 //   useEffect(() => {
 //     if (!karaokeActive || !canvasRef.current) return;
@@ -193,24 +212,44 @@
 //     const ctx = canvas.getContext('2d');
 //     if (!ctx) return;
 
-//     const drawLyrics = () => {
-//       ctx.clearRect(0, 0, canvas.width, canvas.height);
+//     const theme = colorThemes[currentTheme];
+//     const themeColors = theme.colors.map(hexToRgb);
+    
+//     let colorChangeTimer = 0;
+//     const colorChangeDuration = 180;
 
+//     const drawLyrics = () => {
+//       colorChangeTimer++;
+      
+//       if (colorChangeTimer >= colorChangeDuration) {
+//         targetColorRef.current = themeColors[Math.floor(Math.random() * themeColors.length)];
+//         colorChangeTimer = 0;
+//       }
+
+//       backgroundColorRef.current = lerpColor(backgroundColorRef.current, targetColorRef.current, 0.01);
+
+//       const currentColor = backgroundColorRef.current;
 //       const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-//       const theme = colorThemes[currentTheme];
-//       gradient.addColorStop(0, theme.colors[0]);
-//       gradient.addColorStop(0.5, theme.colors[1]);
-//       gradient.addColorStop(1, theme.colors[2]);
+      
+//       const r = Math.round(currentColor.r);
+//       const g = Math.round(currentColor.g);
+//       const b = Math.round(currentColor.b);
+      
+//       gradient.addColorStop(0, `rgb(${r}, ${g}, ${b})`);
+//       gradient.addColorStop(0.5, `rgb(${Math.round(r * 0.8)}, ${Math.round(g * 1.2)}, ${Math.round(b * 1.1)})`);
+//       gradient.addColorStop(1, `rgb(${Math.round(r * 0.6)}, ${Math.round(g * 0.9)}, ${Math.round(b * 1.3)})`);
+      
 //       ctx.fillStyle = gradient;
 //       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-//       const time = Date.now() * 0.001;
-//       ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-//       for (let i = 0; i < 40; i++) {
-//         const x = (Math.sin(time * 0.3 + i * 0.5) * 0.4 + 0.5) * canvas.width;
-//         const y = (Math.cos(time * 0.2 + i * 0.3) * 0.4 + 0.5) * canvas.height;
+//       const time = Date.now() * 0.0005;
+//       ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+//       for (let i = 0; i < 60; i++) {
+//         const x = (Math.sin(time * 0.5 + i * 0.8) * 0.3 + 0.5) * canvas.width;
+//         const y = (Math.cos(time * 0.3 + i * 0.5) * 0.3 + 0.5) * canvas.height;
+//         const size = Math.sin(time * 2 + i) * 4 + 6;
 //         ctx.beginPath();
-//         ctx.arc(x, y, Math.sin(time + i) * 2 + 3, 0, Math.PI * 2);
+//         ctx.arc(x, y, size, 0, Math.PI * 2);
 //         ctx.fill();
 //       }
 
@@ -250,6 +289,10 @@
 //       }
 //     };
 
+//     const initialColor = themeColors[0];
+//     backgroundColorRef.current = initialColor;
+//     targetColorRef.current = themeColors[1];
+
 //     drawLyrics();
 //   }, [isRecording, currentLine, lyrics, currentTheme]);
 
@@ -277,224 +320,98 @@
 //     }
 
 //     try {
-//       if (isMobile()) {
-//         // Crear canvas para grabación
-//         const recordCanvas = document.createElement('canvas');
-//         recordCanvas.width = 1920;
-//         recordCanvas.height = 1080;
-//         lyricsCanvasRef.current = recordCanvas;
+//       const recordCanvas = document.createElement('canvas');
+//       recordCanvas.width = 1920;
+//       recordCanvas.height = 1080;
+//       lyricsCanvasRef.current = recordCanvas;
 
-//         const canvasStream = recordCanvas.captureStream(30);
+//       const canvasStream = recordCanvas.captureStream(30);
 
-//         // NUEVA SOLUCIÓN: Capturar audio directamente del navegador
-//         let audioStream: MediaStream;
+//       audioElement.crossOrigin = 'anonymous';
+      
+//       if (!audioContextRef.current) {
+//         audioContextRef.current = new AudioContext();
+//       }
+      
+//       const audioContext = audioContextRef.current;
+//       const source = audioContext.createMediaElementSource(audioElement);
+//       const destination = audioContext.createMediaStreamDestination();
+      
+//       source.connect(destination);
+//       source.connect(audioContext.destination);
+      
+//       if (audioContext.state === 'suspended') {
+//         await audioContext.resume();
+//       }
+      
+//       const audioStream = destination.stream;
+
+//       const combinedStream = new MediaStream([
+//         ...canvasStream.getVideoTracks(),
+//         ...audioStream.getAudioTracks()
+//       ]);
+
+//       const mediaRecorder = new MediaRecorder(combinedStream, {
+//         mimeType: 'video/webm;codecs=vp9,opus',
+//         videoBitsPerSecond: 5000000,
+//         audioBitsPerSecond: 320000
+//       });
+
+//       recordedChunksRef.current = [];
+
+//       mediaRecorder.ondataavailable = (event) => {
+//         if (event.data.size > 0) {
+//           recordedChunksRef.current.push(event.data);
+//         }
+//       };
+
+//       mediaRecorder.onstop = async () => {
+//         const webmBlob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
         
-//         try {
-//           // Intentar capturar audio del sistema (solo algunos navegadores)
-//           audioStream = await navigator.mediaDevices.getUserMedia({
-//             audio: {
-//               echoCancellation: false,
-//               noiseSuppression: false,
-//               autoGainControl: false
-//             }
-//           });
-//         } catch (err) {
-//           console.log('No se pudo capturar audio del sistema, usando método alternativo');
-          
-//           // Método alternativo: usar AudioContext con crossOrigin
-//           audioElement.crossOrigin = 'anonymous';
-          
-//           const audioContext = new AudioContext();
-//           const source = audioContext.createMediaElementSource(audioElement);
-//           const destination = audioContext.createMediaStreamDestination();
-          
-//           // Conectar para grabar Y para escuchar
-//           source.connect(destination);
-//           source.connect(audioContext.destination);
-          
-//           if (audioContext.state === 'suspended') {
-//             await audioContext.resume();
-//           }
-          
-//           audioStream = destination.stream;
-//         }
+//         const mp4Blob = await convertWebMToMP4(webmBlob);
+        
+//         const url = URL.createObjectURL(mp4Blob);
+//         const a = document.createElement('a');
+//         a.href = url;
+//         a.download = `karaoke-${currentSong.titulo}-${Date.now()}.mp4`;
+//         a.click();
+//         URL.revokeObjectURL(url);
 
-//         // Combinar streams
-//         const combinedStream = new MediaStream([
-//           ...canvasStream.getVideoTracks(),
-//           ...audioStream.getAudioTracks()
-//         ]);
-
-//         let mimeType = 'video/webm;codecs=vp8,opus';
-//         if (!MediaRecorder.isTypeSupported(mimeType)) {
-//           mimeType = 'video/webm';
-//         }
-
-//         const mediaRecorder = new MediaRecorder(combinedStream, {
-//           mimeType: mimeType,
-//           videoBitsPerSecond: 2500000,
-//           audioBitsPerSecond: 128000
-//         });
-
-//         recordedChunksRef.current = [];
-
-//         mediaRecorder.ondataavailable = (event) => {
-//           if (event.data.size > 0) {
-//             recordedChunksRef.current.push(event.data);
-//           }
-//         };
-
-//         mediaRecorder.onstop = () => {
-//           const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-//           const url = URL.createObjectURL(blob);
-//           const a = document.createElement('a');
-//           a.href = url;
-//           a.download = `karaoke-${currentSong.titulo}-${Date.now()}.webm`;
-//           a.click();
-//           URL.revokeObjectURL(url);
-
-//           canvasStream.getTracks().forEach(track => track.stop());
-//           audioStream.getTracks().forEach(track => track.stop());
-
-//           const toast = Swal.mixin({
-//             toast: true,
-//             position: 'top-end',
-//             showConfirmButton: false,
-//             timer: 3000,
-//             timerProgressBar: true
-//           });
-
-//           toast.fire({
-//             icon: 'success',
-//             title: '✅ Video Guardado',
-//             text: `${currentSong.titulo}`
-//           });
-//         };
-
-//         mediaRecorder.start(100);
-//         mediaRecorderRef.current = mediaRecorder;
-//         setIsRecording(true);
+//         canvasStream.getTracks().forEach(track => track.stop());
+//         audioStream.getTracks().forEach(track => track.stop());
 
 //         const toast = Swal.mixin({
 //           toast: true,
 //           position: 'top-end',
 //           showConfirmButton: false,
-//           timer: 2500,
+//           timer: 3000,
 //           timerProgressBar: true
 //         });
 
 //         toast.fire({
 //           icon: 'success',
-//           title: '🎤 Grabando',
-//           text: 'Audio + Letras'
+//           title: '✅ Video Guardado',
+//           text: `${currentSong.titulo}.mp4`
 //         });
+//       };
 
-//       } else {
-//         // DESKTOP: Captura de pantalla con audio
-//         const displayStream = await navigator.mediaDevices.getDisplayMedia({
-//           video: {
-//             width: { ideal: 1920 },
-//             height: { ideal: 1080 },
-//             frameRate: { ideal: 60 }
-//           },
-//           audio: {
-//             echoCancellation: false,
-//             noiseSuppression: false,
-//             autoGainControl: false
-//           }
-//         });
+//       mediaRecorder.start(100);
+//       mediaRecorderRef.current = mediaRecorder;
+//       setIsRecording(true);
 
-//         const audioTracks = displayStream.getAudioTracks();
-//         if (audioTracks.length === 0) {
-//           const retryResult = await Swal.fire({
-//             icon: 'warning',
-//             title: '⚠️ Sin audio',
-//             text: 'No se capturó el audio. Marca "Compartir audio de la pestaña"',
-//             showCancelButton: true,
-//             confirmButtonText: '🔄 Reintentar',
-//             cancelButtonText: 'Cancelar',
-//             confirmButtonColor: '#ec4899',
-//             cancelButtonColor: '#6b7280'
-//           });
-          
-//           displayStream.getTracks().forEach(track => track.stop());
-          
-//           if (retryResult.isConfirmed) {
-//             startRecording();
-//           }
-//           return;
-//         }
+//       const toast = Swal.mixin({
+//         toast: true,
+//         position: 'top-end',
+//         showConfirmButton: false,
+//         timer: 2500,
+//         timerProgressBar: true
+//       });
 
-//         let mimeType = 'video/webm;codecs=vp9,opus';
-//         if (!MediaRecorder.isTypeSupported(mimeType)) {
-//           mimeType = 'video/webm;codecs=vp8,opus';
-//         }
-//         if (!MediaRecorder.isTypeSupported(mimeType)) {
-//           mimeType = 'video/webm';
-//         }
-
-//         const mediaRecorder = new MediaRecorder(displayStream, {
-//           mimeType: mimeType,
-//           videoBitsPerSecond: 5000000,
-//           audioBitsPerSecond: 128000
-//         });
-
-//         recordedChunksRef.current = [];
-
-//         mediaRecorder.ondataavailable = (event) => {
-//           if (event.data.size > 0) {
-//             recordedChunksRef.current.push(event.data);
-//           }
-//         };
-
-//         mediaRecorder.onstop = () => {
-//           const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-//           const url = URL.createObjectURL(blob);
-//           const a = document.createElement('a');
-//           a.href = url;
-//           a.download = `karaoke-${currentSong.titulo}-${Date.now()}.webm`;
-//           a.click();
-//           URL.revokeObjectURL(url);
-          
-//           displayStream.getTracks().forEach(track => track.stop());
-
-//           const toast = Swal.mixin({
-//             toast: true,
-//             position: 'top-end',
-//             showConfirmButton: false,
-//             timer: 3000
-//           });
-
-//           toast.fire({
-//             icon: 'success',
-//             title: '✅ Video Guardado'
-//           });
-//         };
-
-//         displayStream.getVideoTracks()[0].addEventListener('ended', () => {
-//           if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-//             mediaRecorderRef.current.stop();
-//           }
-//           setIsRecording(false);
-//         });
-
-//         mediaRecorder.start(100);
-//         mediaRecorderRef.current = mediaRecorder;
-//         setIsRecording(true);
-
-//         const toast = Swal.mixin({
-//           toast: true,
-//           position: 'top-end',
-//           showConfirmButton: false,
-//           timer: 3000
-//         });
-
-//         toast.fire({
-//           icon: 'success',
-//           title: '✅ Grabando',
-//           text: 'Presiona STOP al terminar'
-//         });
-//       }
+//       toast.fire({
+//         icon: 'success',
+//         title: '🎤 Grabando',
+//         text: 'Audio HD + Letras'
+//       });
 
 //     } catch (err) {
 //       console.error('Error al grabar:', err);
@@ -505,13 +422,37 @@
 //         html: `
 //           <p>No se pudo iniciar la grabación</p>
 //           <p style="font-size: 12px; color: #666; margin-top: 10px;">
-//             En móviles, se requiere permiso de micrófono.<br/>
-//             El audio de la canción se mezclará con el micrófono.
+//             Error: ${err instanceof Error ? err.message : 'Desconocido'}
 //           </p>
 //         `,
 //         confirmButtonColor: '#ec4899'
 //       });
 //     }
+//   };
+
+//   const convertWebMToMP4 = async (webmBlob: Blob): Promise<Blob> => {
+//     return new Promise((resolve) => {
+//       const reader = new FileReader();
+//       reader.onload = () => {
+//         const arrayBuffer = reader.result as ArrayBuffer;
+//         const uint8Array = new Uint8Array(arrayBuffer);
+        
+//         const mp4Header = new Uint8Array([
+//           0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70,
+//           0x69, 0x73, 0x6F, 0x6D, 0x00, 0x00, 0x02, 0x00,
+//           0x69, 0x73, 0x6F, 0x6D, 0x69, 0x73, 0x6F, 0x32,
+//           0x6D, 0x70, 0x34, 0x31
+//         ]);
+        
+//         const combinedArray = new Uint8Array(mp4Header.length + uint8Array.length);
+//         combinedArray.set(mp4Header);
+//         combinedArray.set(uint8Array, mp4Header.length);
+        
+//         const mp4Blob = new Blob([combinedArray], { type: 'video/mp4' });
+//         resolve(mp4Blob);
+//       };
+//       reader.readAsArrayBuffer(webmBlob);
+//     });
 //   };
 
 //   const stopRecording = () => {
@@ -1045,11 +986,11 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       const time = Date.now() * 0.0005;
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-      for (let i = 0; i < 60; i++) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+      for (let i = 0; i < 80; i++) {
         const x = (Math.sin(time * 0.5 + i * 0.8) * 0.3 + 0.5) * canvas.width;
         const y = (Math.cos(time * 0.3 + i * 0.5) * 0.3 + 0.5) * canvas.height;
-        const size = Math.sin(time * 2 + i) * 4 + 6;
+        const size = Math.sin(time * 2 + i) * 8 + 12;
         ctx.beginPath();
         ctx.arc(x, y, size, 0, Math.PI * 2);
         ctx.fill();
@@ -1154,7 +1095,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       ]);
 
       const mediaRecorder = new MediaRecorder(combinedStream, {
-        mimeType: 'video/webm;codecs=vp9,opus',
+        mimeType: 'video/webm;codecs=h264,opus',
         videoBitsPerSecond: 5000000,
         audioBitsPerSecond: 320000
       });
@@ -1170,9 +1111,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       mediaRecorder.onstop = async () => {
         const webmBlob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
         
-        const mp4Blob = await convertWebMToMP4(webmBlob);
-        
-        const url = URL.createObjectURL(mp4Blob);
+        const url = URL.createObjectURL(webmBlob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `karaoke-${currentSong.titulo}-${Date.now()}.mp4`;
@@ -1230,31 +1169,6 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
         confirmButtonColor: '#ec4899'
       });
     }
-  };
-
-  const convertWebMToMP4 = async (webmBlob: Blob): Promise<Blob> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const arrayBuffer = reader.result as ArrayBuffer;
-        const uint8Array = new Uint8Array(arrayBuffer);
-        
-        const mp4Header = new Uint8Array([
-          0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70,
-          0x69, 0x73, 0x6F, 0x6D, 0x00, 0x00, 0x02, 0x00,
-          0x69, 0x73, 0x6F, 0x6D, 0x69, 0x73, 0x6F, 0x32,
-          0x6D, 0x70, 0x34, 0x31
-        ]);
-        
-        const combinedArray = new Uint8Array(mp4Header.length + uint8Array.length);
-        combinedArray.set(mp4Header);
-        combinedArray.set(uint8Array, mp4Header.length);
-        
-        const mp4Blob = new Blob([combinedArray], { type: 'video/mp4' });
-        resolve(mp4Blob);
-      };
-      reader.readAsArrayBuffer(webmBlob);
-    });
   };
 
   const stopRecording = () => {
