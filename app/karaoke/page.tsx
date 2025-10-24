@@ -760,6 +760,8 @@
 
 // export default Karaoke;
 
+
+
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Maximize2, Minimize2, Plus, X, Palette, Video, StopCircle } from 'lucide-react';
@@ -1642,3 +1644,4 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 };
 
 export default Karaoke;
+
