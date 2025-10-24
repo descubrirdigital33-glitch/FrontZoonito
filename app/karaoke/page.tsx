@@ -848,37 +848,37 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
   const backgroundColorRef = useRef<RGB>({ r: 30, g: 27, b: 75 });
   const targetColorRef = useRef<RGB>({ r: 30, g: 27, b: 75 });
   const ffmpegRef = useRef<FFmpeg | null>(null);
-
+  
   const isMobile = (): boolean => {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
       (window.innerWidth <= 768);
   };
 
   useEffect(() => {
-    const loadFFmpeg = async () => {
-      if (typeof window === 'undefined') return; // Evita ejecución en servidor
+  const loadFFmpeg = async () => {
+    if (typeof window === 'undefined') return; // Evita ejecución en servidor
+    
+    if (!ffmpegRef.current) {
+      ffmpegRef.current = new FFmpeg(); // Crear instancia solo en cliente
+    }
+    
+    const ffmpeg = ffmpegRef.current;
 
-      if (!ffmpegRef.current) {
-        ffmpegRef.current = new FFmpeg(); // Crear instancia solo en cliente
-      }
+    try {
+      const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      });
+      setFfmpegLoaded(true);
+      console.log('FFmpeg cargado correctamente');
+    } catch (err) {
+      console.error('Error cargando FFmpeg:', err);
+    }
+  };
 
-      const ffmpeg = ffmpegRef.current;
-
-      try {
-        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-        await ffmpeg.load({
-          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-        });
-        setFfmpegLoaded(true);
-        console.log('FFmpeg cargado correctamente');
-      } catch (err) {
-        console.error('Error cargando FFmpeg:', err);
-      }
-    };
-
-    loadFFmpeg();
-  }, []);
+  loadFFmpeg();
+}, []);
 
   useEffect(() => {
     const audioElement = document.querySelector('audio') as HTMLAudioElement;
@@ -1145,99 +1145,125 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
     drawLyrics();
   }, [isRecording, currentLine, lyrics, currentTheme]);
 
-
-
-  const convertWebMToMP4 = async (webmBlob: Blob, fileName: string): Promise<void> => {
-    Swal.fire({
-      title: '🎬 Convirtiendo a MP4',
-      html: `
+  
+    
+const convertWebMToMP4 = async (webmBlob: Blob, fileName: string): Promise<void> => {
+  Swal.fire({
+    title: '🎬 Convirtiendo a MP4',
+    html: `
       <div class="flex flex-col items-center gap-3">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-pink-500"></div>
         <p class="text-sm text-gray-600">Esto puede tomar unos minutos...</p>
-        <p class="text-xs text-gray-400">Procesando video HD</p>
+        <p class="text-xs text-gray-400" id="progress-text">Procesando video HD</p>
       </div>
     `,
-      allowOutsideClick: false,
-      showConfirmButton: false,
-      didOpen: () => {
-        Swal.showLoading();
+    allowOutsideClick: false,
+    showConfirmButton: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+
+  try {
+    const ffmpeg = ffmpegRef.current;
+    
+    if (!ffmpeg) {
+      throw new Error('FFmpeg no está inicializado');
+    }
+
+    // Agregar logs de progreso
+    ffmpeg.on('log', ({ message }) => {
+      console.log('FFmpeg:', message);
+      const progressEl = document.getElementById('progress-text');
+      if (progressEl) {
+        progressEl.textContent = message.substring(0, 50);
       }
     });
 
-    try {
-      const ffmpeg = ffmpegRef.current;
-
-      if (!ffmpeg) { // <- AGREGAR ESTA VERIFICACIÓN
-        throw new Error('FFmpeg no está inicializado');
+    ffmpeg.on('progress', ({ progress }) => {
+      console.log(`Progreso: ${(progress * 100).toFixed(2)}%`);
+      const progressEl = document.getElementById('progress-text');
+      if (progressEl) {
+        progressEl.textContent = `Progreso: ${(progress * 100).toFixed(0)}%`;
       }
+    });
 
-      await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+    console.log('Escribiendo archivo WebM...');
+    await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+    console.log('Archivo WebM escrito correctamente');
 
-      await ffmpeg.exec([
-        '-i', 'input.webm',
-        '-c:v', 'libx264',
-        '-preset', 'medium',
-        '-crf', '23',
-        '-c:a', 'aac',
-        '-b:a', '192k',
-        '-movflags', '+faststart',
-        'output.mp4'
-      ]);
+    console.log('Iniciando conversión a MP4...');
+    await ffmpeg.exec([
+      '-i', 'input.webm',
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',  // <- CAMBIADO: más rápido
+      '-crf', '28',            // <- CAMBIADO: más compresión
+      '-c:a', 'aac',
+      '-b:a', '128k',          // <- CAMBIADO: menos bitrate
+      '-movflags', '+faststart',
+      '-y',                    // <- AGREGADO: sobrescribir sin preguntar
+      'output.mp4'
+    ]);
+    console.log('Conversión completada');
 
-      const data = await ffmpeg.readFile('output.mp4');
-      const buffer = new Uint8Array(data as unknown as ArrayBuffer);
-      const mp4Blob = new Blob([buffer], { type: 'video/mp4' });
+    console.log('Leyendo archivo MP4...');
+    const data = await ffmpeg.readFile('output.mp4');
+    console.log('Archivo MP4 leído, tamaño:', data.length);
+    
+    const buffer = new Uint8Array(data as unknown as ArrayBuffer);
+    const mp4Blob = new Blob([buffer], { type: 'video/mp4' });
 
-      const url = URL.createObjectURL(mp4Blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = fileName.replace('.webm', '.mp4');
+    const url = URL.createObjectURL(mp4Blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = fileName.replace('.webm', '.mp4');
 
-      document.body.appendChild(a);
-      a.click();
+    document.body.appendChild(a);
+    a.click();
 
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 100);
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
 
-      await ffmpeg.deleteFile('input.webm');
-      await ffmpeg.deleteFile('output.mp4');
+    console.log('Limpiando archivos temporales...');
+    await ffmpeg.deleteFile('input.webm');
+    await ffmpeg.deleteFile('output.mp4');
 
-      Swal.close();
+    Swal.close();
 
-      const toast = Swal.mixin({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 4000,
-        timerProgressBar: true
-      });
+    const toast = Swal.mixin({
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 4000,
+      timerProgressBar: true
+    });
 
-      toast.fire({
-        icon: 'success',
-        title: '✅ Video MP4 Guardado',
-        html: `<small>${fileName.replace('.webm', '.mp4')}</small><br><small style="color: #22c55e;">Listo para compartir en WhatsApp</small>`
-      });
+    toast.fire({
+      icon: 'success',
+      title: '✅ Video MP4 Guardado',
+      html: `<small>${fileName.replace('.webm', '.mp4')}</small><br><small style="color: #22c55e;">Listo para compartir en WhatsApp</small>`
+    });
 
-    } catch (err) {
-      Swal.close();
-      console.error('Error convirtiendo a MP4:', err);
+  } catch (err) {
+    Swal.close();
+    console.error('Error convirtiendo a MP4:', err);
 
-      await Swal.fire({
-        icon: 'error',
-        title: '❌ Error en conversión',
-        html: `
-          <p>No se pudo convertir a MP4</p>
-          <p style="font-size: 12px; color: #666; margin-top: 10px;">
-            ${err instanceof Error ? err.message : 'Error desconocido'}
-          </p>
-        `,
-        confirmButtonColor: '#ec4899'
-      });
-    }
-  };
+    await Swal.fire({
+      icon: 'error',
+      title: '❌ Error en conversión',
+      html: `
+        <p>No se pudo convertir a MP4</p>
+        <p style="font-size: 12px; color: #666; margin-top: 10px;">
+          ${err instanceof Error ? err.message : 'Error desconocido'}
+        </p>
+      `,
+      confirmButtonColor: '#ec4899'
+    });
+  }
+};
 
   const startRecording = async () => {
     const audioElement = document.querySelector('audio') as HTMLAudioElement;
@@ -1656,5 +1682,6 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 };
 
 export default Karaoke;
+
 
 
