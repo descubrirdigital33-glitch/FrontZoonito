@@ -215,7 +215,151 @@ const editSavedTrack = async (track: SavedTrack) => {
     }
 };
 
-const updateSavedTrack = async (id: string, updates: TrackUpdateData) => {
+// const updateSavedTrack = async (id: string, updates: TrackUpdateData) => {
+//     try {
+//         const token = localStorage.getItem('token');
+//         const CLOUD_NAME = "ddigfgmko";
+//         const UPLOAD_PRESET = "music_unsigned";
+
+//         console.log('🔄 Actualizando track:', id);
+//         console.log('📦 Updates recibidos:', updates);
+
+//         let coverUrl = updates.coverUrl; // ✅ Usar la URL actual como base
+
+//         // ✅ Subir nueva portada a Cloudinary si hay coverFile
+//         if (updates.coverFile && updates.coverFile instanceof File) {
+//             console.log('📤 Subiendo nueva portada a Cloudinary...');
+//             const formData = new FormData();
+//             formData.append("file", updates.coverFile);
+//             formData.append("upload_preset", UPLOAD_PRESET);
+
+//             try {
+//                 const cloudinaryRes = await fetch(
+//                     `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+//                     {
+//                         method: "POST",
+//                         body: formData,
+//                     }
+//                 );
+
+//                 if (!cloudinaryRes.ok) {
+//                     const errorData = await cloudinaryRes.json();
+//                     console.error('❌ Error Cloudinary:', errorData);
+//                     throw new Error(`Error al subir imagen a Cloudinary: ${errorData.error?.message || 'Desconocido'}`);
+//                 }
+
+//                 const cloudinaryData = await cloudinaryRes.json();
+//                 coverUrl = cloudinaryData.secure_url;
+//                 console.log('✅ Portada subida a Cloudinary:', coverUrl);
+//             } catch (cloudinaryError) {
+//                 console.error('❌ Error en Cloudinary:', cloudinaryError);
+//                 throw cloudinaryError;
+//             }
+//         }
+
+//         // ✅ Preparar payload para backend COMO JSON
+//         const payload = {
+//             title: updates.title,
+//             artist: updates.artist,
+//             album: updates.album || "",
+//             genre: updates.genre || "",
+//             soloist: updates.soloist,
+//             avance: updates.avance,
+//             ...(coverUrl && { coverUrl }) // ✅ Solo incluir si existe
+//         };
+
+//         console.log('📦 ========== PAYLOAD A ENVIAR ==========');
+//         console.log('Content-Type: application/json');
+//         console.log('Método: PUT');
+//         console.log('URL:', `${API_URL}/${id}`);
+//         console.log('Body:', JSON.stringify(payload, null, 2));
+//         console.log('Token:', token ? '✅ Presente' : '❌ No presente');
+//         console.log('=========================================');
+
+//         // ✅ Headers correctos
+//         const headers: Record<string, string> = {
+//             'Content-Type': 'application/json',
+//             'Accept': 'application/json',
+//         };
+
+//         if (token) {
+//             headers['Authorization'] = `Bearer ${token}`;
+//         }
+
+//         // ✅ Enviar actualización al backend
+//         const response = await fetch(`${API_URL}/${id}`, {
+//             method: 'PUT',
+//             headers: headers,
+//             body: JSON.stringify(payload)
+//         });
+
+//         console.log('📨 ========== RESPUESTA DEL BACKEND ==========');
+//         console.log('Status:', response.status, response.statusText);
+//         console.log('Headers:', {
+//             'content-type': response.headers.get('content-type'),
+//         });
+
+//         if (!response.ok) {
+//             const errorText = await response.text();
+//             console.error('❌ Response Body (texto):', errorText);
+            
+//             let errorData: { message?: string } = {};
+//             try {
+//                 errorData = JSON.parse(errorText);
+//                 console.error('❌ Response Body (parseado):', errorData);
+//             } catch (parseError) {
+//                 console.error('⚠️ No se pudo parsear la respuesta como JSON');
+//                 errorData = { message: errorText };
+//             }
+            
+//             console.log('===========================================');
+//             throw new Error(errorData.message || `Error al actualizar: ${response.statusText}`);
+//         }
+
+//         const updatedTrack = await response.json();
+//         console.log('✅ Track actualizado desde backend:', updatedTrack);
+//         console.log('===========================================');
+
+//         // ✅ Actualizar el estado local
+//         setSavedTracks(savedTracks.map(t =>
+//             t._id === id ? updatedTrack : t
+//         ));
+
+//         Swal.fire({
+//             icon: 'success',
+//             title: '¡Actualizada!',
+//             text: 'La canción se actualizó correctamente',
+//             timer: 2000,
+//             showConfirmButton: false,
+//             background: '#1a1a2e',
+//             color: '#fff',
+//         });
+
+//         return updatedTrack;
+
+//     } catch (error) {
+//         console.error('❌ ========== ERROR EN LA ACTUALIZACIÓN ==========');
+//         console.error('Tipo de error:', error instanceof Error ? error.constructor.name : typeof error);
+//         console.error('Mensaje:', error instanceof Error ? error.message : String(error));
+//         console.error('Stack completo:', error instanceof Error ? error.stack : 'N/A');
+//         console.error('==============================================');
+        
+//         Swal.fire({
+//             icon: 'error',
+//             title: 'Error',
+//             text: error instanceof Error ? error.message : 'No se pudo actualizar la canción',
+//             background: '#1a1a2e',
+//             color: '#fff',
+//             confirmButtonColor: '#6366f1',
+//         });
+//         throw error;
+//     }
+// };
+
+
+
+
+    const updateSavedTrack = async (id: string, updates: TrackUpdateData) => {
     try {
         const token = localStorage.getItem('token');
         const CLOUD_NAME = "ddigfgmko";
@@ -234,27 +378,40 @@ const updateSavedTrack = async (id: string, updates: TrackUpdateData) => {
             formData.append("upload_preset", UPLOAD_PRESET);
 
             try {
+                // ✅ CORRECCIÓN: URL correcta de Cloudinary
                 const cloudinaryRes = await fetch(
-                    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+                    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`,
                     {
                         method: "POST",
                         body: formData,
                     }
                 );
 
+                // ✅ Primero parseamos la respuesta
+                const cloudinaryData = await cloudinaryRes.json();
+
+                // ✅ Luego verificamos si hubo error
                 if (!cloudinaryRes.ok) {
-                    const errorData = await cloudinaryRes.json();
-                    console.error('❌ Error Cloudinary:', errorData);
-                    throw new Error(`Error al subir imagen a Cloudinary: ${errorData.error?.message || 'Desconocido'}`);
+                    console.error('❌ Error Cloudinary:', cloudinaryData);
+                    throw new Error(`Error al subir imagen a Cloudinary: ${cloudinaryData.error?.message || cloudinaryData.message || 'Desconocido'}`);
                 }
 
-                const cloudinaryData = await cloudinaryRes.json();
                 coverUrl = cloudinaryData.secure_url;
                 console.log('✅ Portada subida a Cloudinary:', coverUrl);
             } catch (cloudinaryError) {
                 console.error('❌ Error en Cloudinary:', cloudinaryError);
+                
+                // ✅ Mensaje de error más específico
+                if (cloudinaryError instanceof TypeError) {
+                    throw new Error('Error de conexión con Cloudinary. Verifica tu internet.');
+                }
+                
                 throw cloudinaryError;
             }
+        } else if (updates.coverFile === null && !updates.coverUrl) {
+            // ✅ Si se intentó eliminar la portada pero no hay URL de respaldo
+            console.warn('⚠️ No hay portada nueva ni URL existente');
+            coverUrl = ''; // o podrías usar una imagen por defecto
         }
 
         // ✅ Preparar payload para backend COMO JSON
@@ -1378,3 +1535,4 @@ const updateSavedTrack = async (id: string, updates: TrackUpdateData) => {
         </>
     );
 }
+
