@@ -146,7 +146,7 @@ const handleLogin = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
                 Regístrate aquí
               </a>
             </p>
-            <a href="#" className="text-xs glow-secondary hover:glow-text transition-all">
+             <a href="/recovery" className="link-highlight">
               ¿Olvidaste tu contraseña?
             </a>
           </div>
@@ -376,3 +376,4 @@ const handleLogin = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
   );
 
 }
+
