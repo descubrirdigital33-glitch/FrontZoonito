@@ -161,142 +161,143 @@
 //     };
 
 //     // 🔹 Actualizar con FormData
-//     const handleUpdate = async (id: string, track: Music) => {
-//         try {
-//             setUploading(true);
+   
+// const handleUpdate = async (id: string, track: Music) => {
+//     try {
+//         setUploading(true);
 
-//             const CLOUD_NAME = "ddigfgmko";
-//             const UPLOAD_PRESET = "music_unsigned";
+//         const CLOUD_NAME = "ddigfgmko";
+//         const UPLOAD_PRESET = "music_unsigned";
 
-//             console.log('🔄 Iniciando actualización para ID:', id);
-//             console.log('📦 Datos del formulario:', formData);
-//             console.log('📸 Nueva portada:', newCoverFile);
+//         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+//         console.log('🔄 INICIANDO ACTUALIZACIÓN');
+//         console.log('   ID:', id);
+//         console.log('   ¿Hay archivo nuevo?:', !!newCoverFile);
+//         console.log('   formData.coverUrl:', formData.coverUrl);
+//         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-//             let coverUrl = formData.coverUrl; // URL actual
+//         let finalCoverUrl = formData.coverUrl;
 
-//             // ✅ Si hay archivo nuevo, subirlo a Cloudinary
-//             if (newCoverFile) {
-//                 console.log('📤 Subiendo portada a Cloudinary...');
-//                 const cloudinaryFormData = new FormData();
-//                 cloudinaryFormData.append("file", newCoverFile);
-//                 cloudinaryFormData.append("upload_preset", UPLOAD_PRESET);
+//         // ✅ Si hay archivo nuevo, subirlo a Cloudinary
+//         if (newCoverFile) {
+//             console.log('📤 Subiendo portada a Cloudinary...');
+//             const cloudinaryFormData = new FormData();
+//             cloudinaryFormData.append("file", newCoverFile);
+//             cloudinaryFormData.append("upload_preset", UPLOAD_PRESET);
 
-//                 const cloudinaryRes = await fetch(
-//                     `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-//                     {
-//                         method: "POST",
-//                         body: cloudinaryFormData,
-//                     }
-//                 );
-
-//                 if (!cloudinaryRes.ok) {
-//                     const errorData = await cloudinaryRes.json();
-//                     console.error('❌ Error Cloudinary:', errorData);
-//                     throw new Error(`Error en Cloudinary: ${errorData.error?.message || 'Desconocido'}`);
+//             const cloudinaryRes = await fetch(
+//                 `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+//                 {
+//                     method: "POST",
+//                     body: cloudinaryFormData,
 //                 }
+//             );
 
-//                 const cloudinaryData = await cloudinaryRes.json();
-//                 coverUrl = cloudinaryData.secure_url;
-//                 console.log('✅ Portada subida a Cloudinary:', coverUrl);
+//             if (!cloudinaryRes.ok) {
+//                 const errorData = await cloudinaryRes.json();
+//                 console.error('❌ Error Cloudinary:', errorData);
+//                 throw new Error(`Error en Cloudinary: ${errorData.error?.message || 'Desconocido'}`);
 //             }
 
-//             // ✅ Preparar payload JSON para el backend
-//             const payload = {
-//                 title: formData.title,
-//                 artist: formData.artist,
-//                 album: formData.album || "",
-//                 genre: formData.genre || "",
-//                 soloist: formData.soloist || false,
-//                 ...(coverUrl && { coverUrl })
+//             const cloudinaryData = await cloudinaryRes.json();
+//             finalCoverUrl = cloudinaryData.secure_url;
+//             console.log('✅ NUEVA URL de Cloudinary:', finalCoverUrl);
+//         } else {
+//             console.log('⚠️ No hay archivo nuevo, se mantiene:', finalCoverUrl);
+//         }
+
+//         // ✅ Payload con coverUrl
+//         const payload = {
+//             title: formData.title || track.title,
+//             artist: formData.artist || track.artist,
+//             album: formData.album || track.album || "",
+//             genre: formData.genre || track.genre || "",
+//             soloist: formData.soloist ?? track.soloist,
+//         };
+
+//         // ✅ SIEMPRE agregar coverUrl si existe
+//         if (finalCoverUrl) {
+//             (payload as { coverUrl?: string }).coverUrl = finalCoverUrl;
+//         }
+
+//         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+//         console.log('📦 PAYLOAD AL BACKEND:');
+//         console.log(JSON.stringify(payload, null, 2));
+//         console.log('🔍 payload.coverUrl:', (payload as { coverUrl?: string }).coverUrl);
+//         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+//         // ✅ Enviar
+//         const res = await fetch(`https://backend-zoonito-6x8h.vercel.app/api/music/${id}`, {
+//             method: "PUT",
+//             headers: {
+//                 'Content-Type': 'application/json',
+//                 'Accept': 'application/json',
+//             },
+//             body: JSON.stringify(payload),
+//         });
+
+//         console.log('📨 Status:', res.status);
+//         const responseText = await res.text();
+//         console.log('📨 Response:', responseText);
+
+//         if (res.ok) {
+//             let updatedFromBackend: Music | null = null;
+//             try {
+//                 updatedFromBackend = JSON.parse(responseText);
+//                 console.log('✅ Backend devolvió:', updatedFromBackend);
+//                 console.log('   coverUrl del backend:', updatedFromBackend?.coverUrl);
+//             } catch {
+//                 console.warn('⚠️ No es JSON válido');
+//             }
+
+//             // ✅ USAR LA URL NUEVA (finalCoverUrl), NO LA DEL BACKEND
+//             const updatedMusic: Music = {
+//                 ...track,
+//                 title: formData.title || track.title,
+//                 artist: formData.artist || track.artist,
+//                 album: formData.album || track.album || "",
+//                 genre: formData.genre || track.genre || "",
+//                 soloist: formData.soloist ?? track.soloist,
+//                 coverUrl: newCoverFile ? finalCoverUrl! : (updatedFromBackend?.coverUrl || track.coverUrl),
 //             };
 
-//             console.log('📦 Payload a enviar:', JSON.stringify(payload, null, 2));
+//             console.log('✅ Estado local actualizado con coverUrl:', updatedMusic.coverUrl);
+//             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-//             // ✅ Enviar al backend como JSON
-//             const res = await fetch(`https://backend-zoonito-6x8h.vercel.app/api/music/${id}`, {
-//                 method: "PUT",
-//                 headers: {
-//                     'Content-Type': 'application/json',
-//                     'Accept': 'application/json',
-//                 },
-//                 body: JSON.stringify(payload),
-//             });
+//             setMusicList((prev) =>
+//                 prev.map((m) => (m._id === id ? updatedMusic : m))
+//             );
 
-//             console.log('📨 Status respuesta:', res.status, res.statusText);
-//             const responseText = await res.text();
-//             console.log('📨 Response (texto):', responseText);
-
-//             if (res.ok) {
-//                 let updated: Music | null = null;
-//                 try {
-//                     updated = JSON.parse(responseText);
-//                     console.log('✅ Respuesta parseada:', updated);
-//                 } catch {
-//                     console.warn('⚠️ Respuesta no es JSON válido, usando datos locales');
-//                 }
-
-//                 // ✅ Crear versión local actualizada
-//                 const updatedMusic: Music = {
-//                     ...track,
-//                     title: formData.title || track.title,
-//                     artist: formData.artist || track.artist,
-//                     album: formData.album || track.album || "",
-//                     genre: formData.genre || track.genre || "",
-//                     soloist: formData.soloist ?? track.soloist,
-//                     coverUrl: newCoverFile ? coverUrl! : (updated?.coverUrl || track.coverUrl),
-//                     _id: track._id,
-//                     idMusico: track.idMusico,
-//                     audioUrl: track.audioUrl,
-//                     likes: track.likes,
-//                     rating: track.rating,
-//                     ratings: track.ratings,
-//                     createdAt: track.createdAt,
-//                 };
-
-//                 // ✅ Refrescar la lista sin perder cambios visuales
-//                 setMusicList((prev) =>
-//                     prev.map((m) => (m._id === id ? updatedMusic : m))
-//                 );
-
-//                 setEditing(null);
-//                 setNewCoverFile(null);
-//                 setPreviewCover(null);
-
-//                 Swal.fire({
-//                     icon: "success",
-//                     title: "¡Actualizado!",
-//                     text: "La música se actualizó correctamente",
-//                     timer: 2000,
-//                     showConfirmButton: false,
-//                     background: "#1a1a2e",
-//                     color: "#fff",
-//                 });
-//             } else {
-//                 let errorMessage = "Error actualizando música";
-//                 try {
-//                     const errorData = JSON.parse(responseText);
-//                     errorMessage = errorData.message || errorMessage;
-//                 } catch {
-//                     errorMessage = responseText || errorMessage;
-//                 }
-//                 throw new Error(errorMessage);
-//             }
-//         } catch (err) {
-//             console.error('❌ Error en handleUpdate:', err);
+//             setEditing(null);
+//             setNewCoverFile(null);
+//             setPreviewCover(null);
 
 //             Swal.fire({
-//                 icon: "error",
-//                 title: "Error",
-//                 text: err instanceof Error ? err.message : "No se pudo actualizar la música",
+//                 icon: "success",
+//                 title: "¡Actualizado!",
+//                 text: "La música se actualizó correctamente",
+//                 timer: 2000,
+//                 showConfirmButton: false,
 //                 background: "#1a1a2e",
 //                 color: "#fff",
-//                 confirmButtonColor: "#6366f1",
 //             });
-//         } finally {
-//             setUploading(false);
+//         } else {
+//             throw new Error(`Error del servidor: ${responseText}`);
 //         }
-//     };
-
+//     } catch (err) {
+//         console.error('❌ Error:', err);
+//         Swal.fire({
+//             icon: "error",
+//             title: "Error",
+//             text: err instanceof Error ? err.message : "No se pudo actualizar",
+//             background: "#1a1a2e",
+//             color: "#fff",
+//             confirmButtonColor: "#6366f1",
+//         });
+//     } finally {
+//         setUploading(false);
+//     }
+// };
 
 //     const handleCancelEdit = () => {
 //         setEditing(null);
@@ -520,7 +521,6 @@
 //     );
 
 // }
-
 
 
 
@@ -1018,24 +1018,25 @@ const handleUpdate = async (id: string, track: Music) => {
                                     Tu navegador no soporta audio.
                                 </audio>
 
-                                <div className="flex justify-between mt-3">
+                                {/* ✅ BOTONES EN COLUMNA - CAMBIADO AQUÍ */}
+                                <div className="flex flex-col gap-2 mt-3">
                                     <button
                                         onClick={() => handleEdit(track)}
-                                        className="btn-glass btn-secondary"
+                                        className="btn-glass btn-secondary w-full"
                                     >
                                         ✏️ Editar
                                     </button>
                                     <button
-                                        onClick={() => handleDelete(track._id)}
-                                        className="btn-glass btn-danger"
-                                    >
-                                        🗑️ Eliminar
-                                    </button>
-                                    <button
                                         onClick={() => handleAddLyrics(track._id)}
-                                        className="btn-glass btn-primary flex-1"
+                                        className="btn-glass btn-primary w-full"
                                     >
                                         🎵 Editar letras
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(track._id)}
+                                        className="btn-glass btn-danger w-full"
+                                    >
+                                        🗑️ Eliminar
                                     </button>
                                 </div>
                             </>
@@ -1047,4 +1048,3 @@ const handleUpdate = async (id: string, track: Music) => {
     );
 
 }
-
