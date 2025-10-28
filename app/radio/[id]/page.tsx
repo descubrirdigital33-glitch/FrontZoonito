@@ -11,6 +11,7 @@ import Swal from 'sweetalert2';
 // TIPOS Y INTERFACES
 // ============================================================================
 
+
 interface User {
     _id: string;
     email: string;
@@ -2492,5 +2493,6 @@ const RadioSystem: React.FC = () => {
         </>
     );
 };
+
 
 export default RadioSystem;
