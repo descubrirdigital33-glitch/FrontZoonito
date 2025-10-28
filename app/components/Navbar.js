@@ -187,7 +187,6 @@
 //   );
 // }
 
-
 "use client";
 import Link from "next/link";
 import { useContext, useState } from "react";
@@ -384,5 +383,3 @@ export default function Navbar() {
     </nav>
   );
 }
-
-
