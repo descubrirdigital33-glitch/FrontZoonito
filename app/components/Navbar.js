@@ -22,7 +22,13 @@ export default function Navbar() {
       >
         Zoonito
       </Link>
-
+       <Link
+        href={`/radio/${user?._id}`} // Usa directamente el ID del usuario
+        onClick={handleLinkClick}
+        className="font-extrabold text-2xl glow-text hover:scale-105 transition-transform"
+      >
+        Radio
+      </Link>
       {/* Botón hamburguesa */}
       <div className="md:hidden">
         <button
@@ -180,5 +186,6 @@ export default function Navbar() {
     </nav>
   );
 }
+
 
 
