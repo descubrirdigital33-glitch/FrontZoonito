@@ -276,7 +276,7 @@ export const useRadioStream = ({ sessionId, isOwner, isPlaying }: UseRadioStream
 
   // 🔌 Conectar al backend
   useEffect(() => {
-    const socket: Socket = io("backendzoonito-production.up.railway.app", {
+    const socket: Socket = io("https://backend-zoonito-6x8h.vercel.app", {
       path: "/api/socket",
       transports: ["polling"],
       reconnection: true,
@@ -285,7 +285,6 @@ export const useRadioStream = ({ sessionId, isOwner, isPlaying }: UseRadioStream
     });
 
     // "websocket", 
-// https://backend-zoonito-6x8h.vercel.app/
     socketRef.current = socket;
 
     socket.on('connect', () => {
@@ -450,6 +449,7 @@ export const useRadioStream = ({ sessionId, isOwner, isPlaying }: UseRadioStream
 
   return { isLoadingStream, streamError, listenerCount };
 };
+
 
 
 
