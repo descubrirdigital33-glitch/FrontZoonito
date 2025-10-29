@@ -249,8 +249,7 @@
 
 
 
-
-'use client';
+  'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
@@ -277,19 +276,20 @@ export const useRadioStream = ({ sessionId, isOwner, isPlaying }: UseRadioStream
   const audioQueueRef = useRef<Float32Array[]>([]);
   const isPlayingQueueRef = useRef<boolean>(false);
 
-  // 🔌 Conectar al backend
-useEffect(() => {
+  // 🔌 Conectar al backend (solo polling en Vercel)
+  useEffect(() => {
     const socket: Socket = io("https://backend-zoonito-6x8h.vercel.app", {
       path: "/api/socket",
-      transports: ["polling"], // ✅ solo long-polling para Vercel
+      transports: ["polling"], // ✅ polling para Vercel
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
     });
+
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('✅ Conectado al servidor WebSocket');
+      console.log('✅ Conectado al servidor (polling)');
       socket.emit('join-radio', { sessionId });
     });
 
@@ -306,7 +306,7 @@ useEffect(() => {
     };
   }, [sessionId]);
 
-  // 🎙️ Propietario transmite desde micrófono
+  // 🎙️ Transmitir micrófono si es dueño
   useEffect(() => {
     if (!isOwner || !isPlaying) {
       mediaStreamRef.current?.getTracks().forEach(track => track.stop());
@@ -378,7 +378,7 @@ useEffect(() => {
     };
   }, [isOwner, isPlaying, sessionId]);
 
-  // 🎧 Oyente recibe y reproduce audio
+  // 🎧 Reproducir audio para oyentes
   useEffect(() => {
     if (isOwner || !isPlaying) return;
 
@@ -401,7 +401,7 @@ useEffect(() => {
       const audioData = audioQueueRef.current.shift();
       if (!audioData) return;
 
-      // 🔹 Crear un Float32Array nuevo garantizado
+      // 🔹 Crear Float32Array nuevo para evitar errores de tipos
       const float32Data = new Float32Array(audioData.length);
       float32Data.set(audioData);
 
@@ -416,11 +416,8 @@ useEffect(() => {
       source.start(nextPlayTime);
       nextPlayTime += buffer.duration;
 
-      if (audioQueueRef.current.length > 0) {
-        requestAnimationFrame(playAudioQueue);
-      } else {
-        isPlayingQueueRef.current = false;
-      }
+      if (audioQueueRef.current.length > 0) requestAnimationFrame(playAudioQueue);
+      else isPlayingQueueRef.current = false;
     };
 
     const handleReceiveAudio = (audioChunk: ArrayBuffer) => {
@@ -450,4 +447,6 @@ useEffect(() => {
 
   return { isLoadingStream, streamError, listenerCount };
 };
+
+
 
