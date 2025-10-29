@@ -247,6 +247,10 @@
 
 
 
+
+
+
+
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -278,13 +282,12 @@ export const useRadioStream = ({ sessionId, isOwner, isPlaying }: UseRadioStream
   useEffect(() => {
     const socket: Socket = io("https://backend-zoonito-6x8h.vercel.app", {
       path: "/api/socket",
-      transports: ["polling"],
+      transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
     });
 
-    // "websocket", 
     socketRef.current = socket;
 
     socket.on('connect', () => {
@@ -449,11 +452,4 @@ export const useRadioStream = ({ sessionId, isOwner, isPlaying }: UseRadioStream
 
   return { isLoadingStream, streamError, listenerCount };
 };
-
-
-
-
-
-
-
 
