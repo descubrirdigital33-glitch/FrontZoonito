@@ -7,8 +7,8 @@ interface UseRadioStreamProps {
   sessionId: string;
   isOwner: boolean;
   isPlaying: boolean;
-  isMicMuted: boolean;
-  micVolume: number;
+  isMicMuted?: boolean;  // ✅ Agregado
+  micVolume?: number;     // ✅ Agregado
 }
 
 interface WindowWithAudioContext extends Window {
@@ -19,8 +19,8 @@ export const useRadioStream = ({
   sessionId, 
   isOwner, 
   isPlaying,
-  isMicMuted,
-  micVolume
+  isMicMuted = false,
+  micVolume = 1
 }: UseRadioStreamProps) => {
   const [isLoadingStream, setIsLoadingStream] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
@@ -33,9 +33,10 @@ export const useRadioStream = ({
   const audioQueueRef = useRef<Float32Array[]>([]);
   const isPlayingQueueRef = useRef<boolean>(false);
   
+  // Nuevas referencias para el mixer
   const mixerNodeRef = useRef<GainNode | null>(null);
   const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const micGainRef = useRef<GainNode | null>(null);
+  const micGainRef = useRef<GainNode | null>(null);  // ✅ Nuevo: para controlar volumen del mic
   const trackSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
 
   // 🔌 Conectar al backend
@@ -68,11 +69,10 @@ export const useRadioStream = ({
     };
   }, [sessionId]);
 
-  // 🎙️ Controlar volumen del micrófono cuando cambia isMicMuted
+  // ✅ Efecto para actualizar el volumen del micrófono en tiempo real
   useEffect(() => {
     if (micGainRef.current) {
       micGainRef.current.gain.value = isMicMuted ? 0 : micVolume;
-      console.log(`🎤 Micrófono ${isMicMuted ? 'silenciado' : 'activo'} (volumen: ${isMicMuted ? 0 : micVolume})`);
     }
   }, [isMicMuted, micVolume]);
 
@@ -88,12 +88,10 @@ export const useRadioStream = ({
       mixerNodeRef.current = null;
       micSourceRef.current?.disconnect();
       micSourceRef.current = null;
-      micGainRef.current?.disconnect();
+      micGainRef.current?.disconnect();  // ✅ Limpiar gain del mic
       micGainRef.current = null;
       trackSourceRef.current?.disconnect();
       trackSourceRef.current = null;
-      audioContextRef.current?.close();
-      audioContextRef.current = null;
       return;
     }
 
@@ -128,15 +126,15 @@ export const useRadioStream = ({
         const micSource = audioContext.createMediaStreamSource(micStream);
         micSourceRef.current = micSource;
         
-        // 🎤 Crear nodo de ganancia para el micrófono (para poder mutearlo)
+        // ✅ Crear un GainNode para el micrófono y aplicar el volumen
         const micGain = audioContext.createGain();
         micGain.gain.value = isMicMuted ? 0 : micVolume;
         micGainRef.current = micGain;
         
-        // Conectar: micrófono -> ganancia -> mixer
+        // Conectar micrófono -> micGain -> mixer
         micSource.connect(micGain);
         micGain.connect(mixer);
-        console.log('🎤 Micrófono conectado al mixer con control de ganancia');
+        console.log('🎤 Micrófono conectado al mixer con control de volumen');
 
         // 4️⃣ Buscar y conectar el elemento <audio> de las canciones
         const connectTrackAudio = () => {
@@ -145,12 +143,16 @@ export const useRadioStream = ({
           if (audioElements.length > 0) {
             const audioElement = audioElements[0] as HTMLAudioElement;
             
+            // Solo crear fuente si no existe ya
             if (!trackSourceRef.current) {
               try {
                 const trackSource = audioContext.createMediaElementSource(audioElement);
                 trackSourceRef.current = trackSource;
                 
+                // Conectar al mixer (para transmitir)
                 trackSource.connect(mixer);
+                
+                // También conectar directamente a destination (para escuchar localmente)
                 trackSource.connect(audioContext.destination);
                 
                 console.log('🎵 Audio de canción conectado al mixer');
@@ -158,16 +160,22 @@ export const useRadioStream = ({
                 console.warn('⚠️ Error conectando audio (puede estar ya conectado):', err);
               }
             }
+          } else {
+            console.log('⏳ Esperando elemento <audio>...');
           }
         };
 
+        // Conectar inmediatamente
         connectTrackAudio();
+
+        // Reconectar si cambia la canción (cada 2 segundos)
         const reconnectInterval = setInterval(connectTrackAudio, 2000);
 
         // 5️⃣ Crear procesador para capturar y enviar audio mezclado
         const processor = audioContext.createScriptProcessor(4096, 1, 1);
         processorRef.current = processor;
 
+        // Conectar el mixer al procesador
         mixer.connect(processor);
         processor.connect(audioContext.destination);
 
@@ -178,11 +186,13 @@ export const useRadioStream = ({
           const buffer = new ArrayBuffer(inputData.length * 2);
           const view = new Int16Array(buffer);
 
+          // Convertir Float32 a Int16
           for (let i = 0; i < inputData.length; i++) {
             const s = Math.max(-1, Math.min(1, inputData[i]));
             view[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
           }
 
+          // Enviar al backend
           socketRef.current.emit('live-audio-chunk', { sessionId, audioChunk: buffer });
         };
 
@@ -204,11 +214,11 @@ export const useRadioStream = ({
       processorRef.current?.disconnect();
       mixerNodeRef.current?.disconnect();
       micSourceRef.current?.disconnect();
-      micGainRef.current?.disconnect();
+      micGainRef.current?.disconnect();  // ✅ Limpiar gain del mic
       trackSourceRef.current?.disconnect();
       audioContextRef.current?.close();
     };
-  }, [isOwner, isPlaying, sessionId]);
+  }, [isOwner, isPlaying, sessionId]); // ✅ No incluir isMicMuted/micVolume aquí, se manejan en otro efecto
 
   // 🎧 Oyente recibe y reproduce audio
   useEffect(() => {
@@ -233,6 +243,7 @@ export const useRadioStream = ({
       const audioData = audioQueueRef.current.shift();
       if (!audioData) return;
 
+      // Crear Float32Array nuevo garantizado
       const float32Data = new Float32Array(audioData.length);
       float32Data.set(audioData);
 
@@ -258,6 +269,7 @@ export const useRadioStream = ({
       const int16Array = new Int16Array(audioChunk);
       const float32Array = new Float32Array(int16Array.length);
       
+      // Convertir Int16 a Float32
       for (let i = 0; i < int16Array.length; i++) {
         float32Array[i] = int16Array[i] / (int16Array[i] < 0 ? 0x8000 : 0x7FFF);
       }
@@ -282,7 +294,11 @@ export const useRadioStream = ({
 
   return { isLoadingStream, streamError, listenerCount };
 };
+      
 
+    
+  
+ 
 
 
 
@@ -562,4 +578,5 @@ export const useRadioStream = ({
 
 //   return { isLoadingStream, streamError, listenerCount };
 // };
+
 
