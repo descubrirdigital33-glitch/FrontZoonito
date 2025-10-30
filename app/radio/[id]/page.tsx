@@ -7,7 +7,7 @@ import { useReproductor } from '../../context/ReproductorContext';
 import { Cancion } from "../../components/Reproductor";
 import Swal from 'sweetalert2';
 import { useRadioStream } from '../../hooks/useRadioStream';
-import MusicaPlayer from "../../MusicaPlayer/page";
+import  MusicaPlayer from "../../MusicaPlayer/page";
 
 
 // ============================================================================
@@ -824,9 +824,7 @@ const Player: React.FC<PlayerProps> = ({
     } = useRadioStream({
         sessionId: radio._id,
         isOwner,
-        isPlaying,
-        isMicMuted,
-        micVolume
+        isPlaying
     });
 
     const [showVolumeControls, setShowVolumeControls] = useState(false);
@@ -836,38 +834,19 @@ const Player: React.FC<PlayerProps> = ({
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6">
                     <div className="flex items-center gap-4 w-full md:w-auto">
-                        {/* Botón ON AIR / OFF AIR - Solo para el dueño */}
-                        {isOwner && canTransmit ? (
-                            <button
-                                onClick={onToggleLive}
-                                disabled={isLoadingStream}
-                                className={`w-14 h-14 md:w-16 md:h-16 rounded-full backdrop-blur-sm transition-all flex items-center justify-center group flex-shrink-0 ${radio.isLive
-                                        ? 'bg-red-500/30 hover:bg-red-500/40 border-2 border-red-500 animate-pulse'
-                                        : 'bg-gray-500/20 hover:bg-gray-500/30 border-2 border-gray-500'
-                                    }`}
-                            >
-                                {isLoadingStream ? (
-                                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                ) : (
-                                    <Radio className={`w-6 h-6 md:w-8 md:h-8 ${radio.isLive ? 'text-red-300' : 'text-gray-400'
-                                        } group-hover:scale-110 transition-transform`} />
-                                )}
-                            </button>
-                        ) : (
-                            <button
-                                onClick={onPlayPause}
-                                disabled={!radio.isLive || isLoadingStream}
-                                className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all flex items-center justify-center group disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                            >
-                                {isLoadingStream ? (
-                                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                ) : isPlaying ? (
-                                    <Pause className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:scale-110 transition-transform" />
-                                ) : (
-                                    <Play className="w-6 h-6 md:w-8 md:h-8 text-white ml-1 group-hover:scale-110 transition-transform" />
-                                )}
-                            </button>
-                        )}
+                        <button
+                            onClick={onPlayPause}
+                            disabled={!radio.isLive || isLoadingStream}
+                            className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all flex items-center justify-center group disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                        >
+                            {isLoadingStream ? (
+                                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : isPlaying ? (
+                                <Pause className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:scale-110 transition-transform" />
+                            ) : (
+                                <Play className="w-6 h-6 md:w-8 md:h-8 text-white ml-1 group-hover:scale-110 transition-transform" />
+                            )}
+                        </button>
 
                         {/* Botón de mutear micrófono (solo para el dueño cuando está transmitiendo) */}
                         {isOwner && canTransmit && radio.isLive && (
@@ -901,19 +880,19 @@ const Player: React.FC<PlayerProps> = ({
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                             {radio.isLive ? (
                                 <span className="bg-red-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1 animate-pulse">
-                                    <Radio size={12} />
-                                    ON AIR
+                                    <Mic size={12} />
+                                    EN VIVO
                                 </span>
                             ) : (
                                 <span className="bg-gray-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1">
                                     <Radio size={12} />
-                                    OFF AIR
+                                    OFF LINE
                                 </span>
                             )}
-                            {isOwner && radio.isLive && (
+                            {isOwner && isPlaying && radio.isLive && (
                                 <>
                                     <span className="bg-green-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1 animate-pulse">
-                                        <Zap size={12} />
+                                        <Mic size={12} />
                                         TRANSMITIENDO
                                     </span>
                                     {isMicMuted && (
@@ -974,12 +953,26 @@ const Player: React.FC<PlayerProps> = ({
                         )}
 
                         {isOwner && (
-                            <button
-                                onClick={onEdit}
-                                className="text-white/80 hover:text-white transition-colors p-2 bg-white/10 rounded-lg hover:bg-white/20"
-                            >
-                                <Settings size={20} />
-                            </button>
+                            <>
+                                <button
+                                    onClick={onEdit}
+                                    className="text-white/80 hover:text-white transition-colors p-2 bg-white/10 rounded-lg hover:bg-white/20"
+                                >
+                                    <Settings size={20} />
+                                </button>
+                                {canTransmit && (
+                                    <button
+                                        onClick={onToggleLive}
+                                        className={`px-3 py-1 rounded-lg text-sm font-semibold transition-colors ${radio.isLive
+                                                ? 'bg-red-500/20 text-red-300 border-2 border-red-500/50 animate-pulse'
+                                                : 'bg-green-500/20 text-green-300 border-2 border-green-500/50'
+                                            }`}
+                                    >
+                                        <Mic size={16} className="inline mr-1" />
+                                        {radio.isLive ? 'Detener' : 'Iniciar'}
+                                    </button>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>
@@ -1060,7 +1053,7 @@ const Player: React.FC<PlayerProps> = ({
 
                                 <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
                                     <p className="text-blue-300 text-xs">
-                                        💡 <strong>Tip:</strong> Baja la música al 30-40% cuando hables para que tu voz se escuche clara (efecto bajo cortina).
+                                        💡 <strong>Tip:</strong> Baja la música al 30-40% cuando hables para que tu voz se escuche clara (efecto- bajo cortina).
                                     </p>
                                 </div>
 
@@ -1091,13 +1084,13 @@ const Player: React.FC<PlayerProps> = ({
                     </div>
                 )}
 
-                {isOwner && radio.isLive && (
+                {isOwner && isPlaying && radio.isLive && (
                     <div className={`border rounded-lg p-3 flex items-center gap-2 ${isMicMuted ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/10 border-green-500/30'
                         }`}>
                         <div className={`w-2 h-2 rounded-full ${isMicMuted ? 'bg-red-500' : 'bg-green-500 animate-pulse'}`} />
                         <p className={`text-sm ${isMicMuted ? 'text-red-300' : 'text-green-300'}`}>
                             {isMicMuted
-                                ? '🔇 Tu micrófono está silenciado. Los oyentes no te escuchan (la música sigue sonando).'
+                                ? '🔇 Tu micrófono está silenciado. Los oyentes no te escuchan.'
                                 : `🎤 Tu micrófono está transmitiendo en vivo a ${listenerCount} oyente${listenerCount !== 1 ? 's' : ''}`
                             }
                         </p>
@@ -1118,8 +1111,8 @@ const Player: React.FC<PlayerProps> = ({
                         <Radio className="text-gray-400" size={18} />
                         <p className="text-gray-300 text-sm">
                             {isOwner && canTransmit
-                                ? 'Haz clic en el botón ON AIR para comenzar a transmitir en vivo'
-                                : 'Esta radio está OFF AIR en este momento'}
+                                ? 'Haz clic en "Iniciar" para comenzar a transmitir en vivo con tu micrófono'
+                                : 'Esta radio está fuera de línea en este momento'}
                         </p>
                     </div>
                 )}
@@ -1127,6 +1120,7 @@ const Player: React.FC<PlayerProps> = ({
         </div>
     );
 };
+
 // ============================================================================
 // COMPONENTE: ITEM DE PLAYLIST
 // ============================================================================
@@ -1224,8 +1218,8 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
     return (
         <div
             className={`group flex flex-col gap-2 p-3 md:p-4 rounded-lg transition-all ${isPlaying
-                ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-2 border-purple-500/50'
-                : 'bg-white/5 hover:bg-white/10 border-2 border-transparent'
+                    ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-2 border-purple-500/50'
+                    : 'bg-white/5 hover:bg-white/10 border-2 border-transparent'
                 }`}
         >
             {isOwner && (
@@ -1617,7 +1611,155 @@ const Chat: React.FC<ChatProps> = ({
             }
         });
     };
-return (
+
+    return (
+        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-4 md:p-6 flex flex-col h-full">
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
+                    <Users size={24} />
+                    <span className="hidden md:inline">Chat en Vivo</span>
+                    <span className="md:hidden">Chat</span>
+                </h2>
+                <div className="flex items-center gap-3">
+                    <span className="text-white/60 text-xs md:text-sm">
+                        {listeners > 0 ? `${listeners} oyentes` : 'Sin oyentes'}
+                    </span>
+                    {canModerate && (
+                        <button
+                            onClick={onToggleFreeze}
+                            className={`px-2 md:px-3 py-1 rounded-lg text-xs md:text-sm transition-colors flex items-center gap-1 ${isFrozen
+                                    ? 'bg-red-500/20 text-red-300 border border-red-500/50'
+                                    : 'bg-green-500/20 text-green-300 border border-green-500/50'
+                                }`}
+                        >
+                            {isFrozen ? (
+                                <>
+                                    <Ban size={14} />
+                                    <span className="hidden sm:inline">Congelado</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Shield size={14} />
+                                    <span className="hidden sm:inline">Activo</span>
+                                </>
+                            )}
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {isFrozen && (
+                <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-lg p-2 flex items-center gap-2">
+                    <Ban className="text-red-400" size={16} />
+                    <p className="text-red-300 text-xs">
+                        {canModerate
+                            ? 'Chat congelado. Solo tú puedes escribir.'
+                            : 'El chat está congelado por el moderador.'}
+                    </p>
+                </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+                {messages.length === 0 ? (
+                    <div className="text-center py-8 text-white/60">
+                        <Users size={48} className="mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No hay mensajes aún</p>
+                        <p className="text-xs mt-1">Sé el primero en chatear</p>
+                    </div>
+                ) : (
+                    messages.map((msg) => (
+                        <div key={msg._id} className="bg-white/5 rounded-lg p-2 md:p-3 group relative">
+                            <div className="flex items-center gap-2 mb-1">
+                                {msg.userAvatar && (
+                                    <img
+                                        src={msg.userAvatar}
+                                        alt={msg.userName}
+                                        className="w-6 h-6 rounded-full"
+                                    />
+                                )}
+                                <span className="text-purple-400 font-medium text-xs md:text-sm">{msg.userName}</span>
+                                <span className="text-white/40 text-xs">
+                                    {new Date(msg.createdAt).toLocaleTimeString()}
+                                </span>
+                                {canModerate && (
+                                    <button
+                                        onClick={() => handleDeleteMessage(msg._id)}
+                                        className="ml-auto opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-all"
+                                        title="Eliminar mensaje"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                )}
+                            </div>
+                            <p className="text-white/90 text-sm md:text-base">{msg.text}</p>
+                        </div>
+                    ))
+                )}
+                <div ref={messagesEndRef} />
+            </div>
+
+            <div className="flex gap-2">
+                <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                    placeholder={isFrozen && !canModerate ? 'Chat congelado...' : 'Escribe un mensaje...'}
+                    disabled={isFrozen && !canModerate}
+                    className="flex-1 bg-white/10 text-white rounded-lg px-3 md:px-4 py-2 outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 text-sm md:text-base"
+                />
+                <button
+                    onClick={handleSend}
+                    disabled={(isFrozen && !canModerate) || !inputValue.trim()}
+                    className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white px-3 md:px-4 py-2 rounded-lg transition-colors"
+                >
+                    <Send size={18} />
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// ============================================================================
+// COMPONENTE: CONTROL DE INVITADOS
+// ============================================================================
+
+interface GuestControlProps {
+    radioId: string;
+    guestCode?: string;
+    onGenerateCode: () => void;
+    allowGuests: boolean;
+}
+
+const GuestControl: React.FC<GuestControlProps> = ({
+    radioId,
+    guestCode,
+    onGenerateCode,
+    allowGuests
+}) => {
+    const [copied, setCopied] = useState(false);
+    const [showCode, setShowCode] = useState(false);
+
+    const handleCopy = () => {
+        if (guestCode) {
+            navigator.clipboard.writeText(guestCode);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+
+            Swal.fire({
+                icon: 'success',
+                title: '¡Código copiado!',
+                text: 'Comparte este código con tus invitados',
+                background: '#1a1a2e',
+                color: '#fff',
+                confirmButtonColor: '#8b5cf6',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        }
+    };
+
+   return (
     <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-4 md:p-6">
         <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2 mb-4">
             <Mic size={24} />
@@ -1669,207 +1811,6 @@ return (
     </div>
 );
 
-
-
-    
-    // return (
-    //     <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-4 md:p-6 flex flex-col h-full">
-    //         <div className="flex items-center justify-between mb-4">
-    //             <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
-    //                 <Users size={24} />
-    //                 <span className="hidden md:inline">Chat en Vivo</span>
-    //                 <span className="md:hidden">Chat</span>
-    //             </h2>
-    //             <div className="flex items-center gap-3">
-    //                 <span className="text-white/60 text-xs md:text-sm">
-    //                     {listeners > 0 ? `${listeners} oyentes` : 'Sin oyentes'}
-    //                 </span>
-    //                 {canModerate && (
-    //                     <button
-    //                         onClick={onToggleFreeze}
-    //                         className={`px-2 md:px-3 py-1 rounded-lg text-xs md:text-sm transition-colors flex items-center gap-1 ${isFrozen
-    //                             ? 'bg-red-500/20 text-red-300 border border-red-500/50'
-    //                             : 'bg-green-500/20 text-green-300 border border-green-500/50'
-    //                             }`}
-    //                     >
-    //                         {isFrozen ? (
-    //                             <>
-    //                                 <Ban size={14} />
-    //                                 <span className="hidden sm:inline">Congelado</span>
-    //                             </>
-    //                         ) : (
-    //                             <>
-    //                                 <Shield size={14} />
-    //                                 <span className="hidden sm:inline">Activo</span>
-    //                             </>
-    //                         )}
-    //                     </button>
-    //                 )}
-    //             </div>
-    //         </div>
-
-    //         {isFrozen && (
-    //             <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-lg p-2 flex items-center gap-2">
-    //                 <Ban className="text-red-400" size={16} />
-    //                 <p className="text-red-300 text-xs">
-    //                     {canModerate
-    //                         ? 'Chat congelado. Solo tú puedes escribir.'
-    //                         : 'El chat está congelado por el moderador.'}
-    //                 </p>
-    //             </div>
-    //         )}
-
-    //         <div className="flex-1 overflow-y-auto space-y-3 mb-4">
-    //             {messages.length === 0 ? (
-    //                 <div className="text-center py-8 text-white/60">
-    //                     <Users size={48} className="mx-auto mb-2 opacity-50" />
-    //                     <p className="text-sm">No hay mensajes aún</p>
-    //                     <p className="text-xs mt-1">Sé el primero en chatear</p>
-    //                 </div>
-    //             ) : (
-    //                 messages.map((msg) => (
-    //                     <div key={msg._id} className="bg-white/5 rounded-lg p-2 md:p-3 group relative">
-    //                         <div className="flex items-center gap-2 mb-1">
-    //                             {msg.userAvatar && (
-    //                                 <img
-    //                                     src={msg.userAvatar}
-    //                                     alt={msg.userName}
-    //                                     className="w-6 h-6 rounded-full"
-    //                                 />
-    //                             )}
-    //                             <span className="text-purple-400 font-medium text-xs md:text-sm">{msg.userName}</span>
-    //                             <span className="text-white/40 text-xs">
-    //                                 {new Date(msg.createdAt).toLocaleTimeString()}
-    //                             </span>
-    //                             {canModerate && (
-    //                                 <button
-    //                                     onClick={() => handleDeleteMessage(msg._id)}
-    //                                     className="ml-auto opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-all"
-    //                                     title="Eliminar mensaje"
-    //                                 >
-    //                                     <Trash2 size={14} />
-    //                                 </button>
-    //                             )}
-    //                         </div>
-    //                         <p className="text-white/90 text-sm md:text-base">{msg.text}</p>
-    //                     </div>
-    //                 ))
-    //             )}
-    //             <div ref={messagesEndRef} />
-    //         </div>
-
-    //         <div className="flex gap-2">
-    //             <input
-    //                 type="text"
-    //                 value={inputValue}
-    //                 onChange={(e) => setInputValue(e.target.value)}
-    //                 onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-    //                 placeholder={isFrozen && !canModerate ? 'Chat congelado...' : 'Escribe un mensaje...'}
-    //                 disabled={isFrozen && !canModerate}
-    //                 className="flex-1 bg-white/10 text-white rounded-lg px-3 md:px-4 py-2 outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 text-sm md:text-base"
-    //             />
-    //             <button
-    //                 onClick={handleSend}
-    //                 disabled={(isFrozen && !canModerate) || !inputValue.trim()}
-    //                 className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white px-3 md:px-4 py-2 rounded-lg transition-colors"
-    //             >
-    //                 <Send size={18} />
-    //             </button>
-    //         </div>
-    //     </div>
-    // );
-};
-
-// ============================================================================
-// COMPONENTE: CONTROL DE INVITADOS
-// ============================================================================
-
-interface GuestControlProps {
-    radioId: string;
-    guestCode?: string;
-    onGenerateCode: () => void;
-    allowGuests: boolean;
-}
-
-const GuestControl: React.FC<GuestControlProps> = ({
-    radioId,
-    guestCode,
-    onGenerateCode,
-    allowGuests
-}) => {
-    const [copied, setCopied] = useState(false);
-    const [showCode, setShowCode] = useState(false);
-
-    const handleCopy = () => {
-        if (guestCode) {
-            navigator.clipboard.writeText(guestCode);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-
-            Swal.fire({
-                icon: 'success',
-                title: '¡Código copiado!',
-                text: 'Comparte este código con tus invitados',
-                background: '#1a1a2e',
-                color: '#fff',
-                confirmButtonColor: '#8b5cf6',
-                timer: 1500,
-                showConfirmButton: false
-            });
-        }
-    };
-
-  return (
-        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-4 md:p-6">
-            <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2 mb-4">
-                <Mic size={24} />
-                Control de Invitados
-            </h2>
-
-            <div className="space-y-4">
-                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-                    <p className="text-blue-300 text-sm mb-3">
-                        Genera un código para que otros puedan conectarse como invitados y hablar en tu radio.
-                    </p>
-
-                    {!guestCode ? (
-                        <button
-                            onClick={onGenerateCode}
-                            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition-colors"
-                        >
-                            Generar Código de Invitado
-                        </button>
-                    ) : (
-                        <div className="space-y-3">
-                            <div className="flex gap-2 flex-wrap">
-                                <input
-                                    type={showCode ? 'text' : 'password'}
-                                    value={guestCode}
-                                    readOnly
-                                    className="flex-1 bg-white/10 text-white rounded-lg px-4 py-2 font-mono text-sm min-w-[150px]"
-                                />
-                                <button
-                                    onClick={() => setShowCode(!showCode)}
-                                    className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg"
-                                >
-                                    {showCode ? '👁️' : '👁️‍🗨️'}
-                                </button>
-                                <button
-                                    onClick={handleCopy}
-                                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg"
-                                >
-                                    {copied ? <Check size={18} /> : 'Copiar'}
-                                </button>
-                            </div>
-                            <p className="text-white/60 text-xs">
-                                Comparte este código con tus invitados para que puedan conectarse
-                            </p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
 };
 
 // ============================================================================
@@ -2520,8 +2461,3 @@ const RadioSystem: React.FC = () => {
 };
 
 export default RadioSystem;
-
-
-
-
-
