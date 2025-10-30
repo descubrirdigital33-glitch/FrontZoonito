@@ -6,7 +6,7 @@
 // import { useReproductor } from '../../context/ReproductorContext';
 // import { Cancion } from "../../components/Reproductor";
 // import Swal from 'sweetalert2';
-
+// import { useRadioStream } from '../../hooks/useRadioStream';
 // // ============================================================================
 // // TIPOS Y INTERFACES
 // // ============================================================================
@@ -499,7 +499,42 @@
 //         const formData = new FormData();
 //         formData.append('name', name);
 //         formData.append('description', description);
-//         if (logo) formData.append('logo', logo);
+
+//         // Subir logo a Cloudinary si hay uno nuevo
+//         if (logo) {
+//             try {
+//                 const cloudinaryFormData = new FormData();
+//                 cloudinaryFormData.append('file', logo);
+//                 cloudinaryFormData.append('upload_preset', 'zoonity_radios'); // 👈 Cambia esto por tu preset
+
+//                 const cloudinaryRes = await fetch(
+//                     'https://api.cloudinary.com/v1_1/dplncudbq/image/upload', // 👈 Cambia por tu cloud name
+//                     {
+//                         method: 'POST',
+//                         body: cloudinaryFormData
+//                     }
+//                 );
+
+//                 if (cloudinaryRes.ok) {
+//                     const data = await cloudinaryRes.json();
+//                     formData.append('logo', data.secure_url); // Enviar URL al backend
+//                 } else {
+//                     throw new Error('Error al subir imagen a Cloudinary');
+//                 }
+//             } catch (error) {
+//                 console.error('Error subiendo a Cloudinary:', error);
+//                 Swal.fire({
+//                     icon: 'error',
+//                     title: 'Error al subir imagen',
+//                     text: 'No se pudo subir la imagen. Intenta de nuevo.',
+//                     background: '#1a1a2e',
+//                     color: '#fff',
+//                     confirmButtonColor: '#ef4444',
+//                 });
+//                 setIsSaving(false);
+//                 return;
+//             }
+//         }
 
 //         await onUpdate(formData);
 //         setIsSaving(false);
@@ -725,6 +760,8 @@
 // // COMPONENTE: REPRODUCTOR PRINCIPAL DE RADIO EN VIVO CON MICRÓFONO
 // // ============================================================================
 
+// // REEMPLAZAR el componente Player completo con este:
+
 // interface PlayerProps {
 //     radio: RadioStation;
 //     currentTrack: Track | null;
@@ -752,278 +789,19 @@
 //     isOwner,
 //     canTransmit
 // }) => {
-//     const audioRef = useRef<HTMLAudioElement>(null);
-//     const [isLoadingStream, setIsLoadingStream] = useState(false);
-//     const [streamError, setStreamError] = useState<string | null>(null);
-
-//     // ⭐ NUEVOS ESTADOS PARA MICRÓFONO
-//     const [isMicActive, setIsMicActive] = useState(false);
-//     const [micVolume, setMicVolume] = useState(0.8);
-//     const [musicVolume, setMusicVolume] = useState(0.7);
-//     const [isMixing, setIsMixing] = useState(false);
-
-//     // Referencias para Web Audio API
-//     const audioContextRef = useRef<AudioContext | null>(null);
-//     const mediaStreamRef = useRef<MediaStream | null>(null);
-//     const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-//     const trackSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-//     const micGainRef = useRef<GainNode | null>(null);
-//     const musicGainRef = useRef<GainNode | null>(null);
-//     const mixerRef = useRef<GainNode | null>(null);
-//     const analyserRef = useRef<AnalyserNode | null>(null);
-//     const [micLevel, setMicLevel] = useState(0);
-
-//     // Inicializar Web Audio Context
-//     // Inicializar Web Audio Context
-//     const initializeAudioContext = () => {
-//         if (!audioContextRef.current) {
-//             const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-//             if (!AudioCtx) {
-//                 console.error('AudioContext no soportado en este navegador');
-//                 return;
-//             }
-//             audioContextRef.current = new AudioCtx();
-
-//             // Crear nodo mezclador principal
-//             mixerRef.current = audioContextRef.current.createGain();
-//             mixerRef.current.gain.value = 1.0;
-//             mixerRef.current.connect(audioContextRef.current.destination);
-
-//             // Crear ganancia para música
-//             musicGainRef.current = audioContextRef.current.createGain();
-//             musicGainRef.current.gain.value = musicVolume;
-//             musicGainRef.current.connect(mixerRef.current);
-
-//             // Crear ganancia para micrófono
-//             micGainRef.current = audioContextRef.current.createGain();
-//             micGainRef.current.gain.value = micVolume;
-//             micGainRef.current.connect(mixerRef.current);
-
-//             // Crear analizador para visualizar nivel del micrófono
-//             analyserRef.current = audioContextRef.current.createAnalyser();
-//             analyserRef.current.fftSize = 256;
-//         }
-
-//         if (audioContextRef.current.state === 'suspended') {
-//             audioContextRef.current.resume();
-//         }
-//     };
-
-
-//     // ⭐ ACTIVAR/DESACTIVAR MICRÓFONO
-//     const toggleMicrophone = async () => {
-//         if (!isMicActive) {
-//             try {
-//                 initializeAudioContext();
-
-//                 // Solicitar acceso al micrófono
-//                 const stream = await navigator.mediaDevices.getUserMedia({
-//                     audio: {
-//                         echoCancellation: true,
-//                         noiseSuppression: true,
-//                         autoGainControl: true,
-//                         sampleRate: 48000
-//                     }
-//                 });
-
-//                 mediaStreamRef.current = stream;
-
-//                 // Crear source del micrófono
-//                 if (audioContextRef.current) {
-//                     micSourceRef.current = audioContextRef.current.createMediaStreamSource(stream);
-
-//                     // Conectar micrófono al analizador (para visualización)
-//                     if (analyserRef.current && micGainRef.current) {
-//                         micSourceRef.current.connect(analyserRef.current);
-//                         analyserRef.current.connect(micGainRef.current);
-//                     }
-//                 }
-
-//                 setIsMicActive(true);
-//                 setIsMixing(true);
-
-//                 // Iniciar monitoreo de nivel del micrófono
-//                 monitorMicLevel();
-
-//                 Swal.fire({
-//                     icon: 'success',
-//                     title: '🎙️ Micrófono activado',
-//                     text: 'Ahora estás transmitiendo en vivo',
-//                     background: '#1a1a2e',
-//                     color: '#fff',
-//                     confirmButtonColor: '#8b5cf6',
-//                     timer: 2000,
-//                     showConfirmButton: false
-//                 });
-
-//             } catch (error) {
-//                 console.error('Error activando micrófono:', error);
-//                 Swal.fire({
-//                     icon: 'error',
-//                     title: 'Error de micrófono',
-//                     text: 'No se pudo acceder al micrófono. Verifica los permisos.',
-//                     background: '#1a1a2e',
-//                     color: '#fff',
-//                     confirmButtonColor: '#ef4444',
-//                 });
-//             }
-//         } else {
-//             // Desactivar micrófono
-//             if (mediaStreamRef.current) {
-//                 mediaStreamRef.current.getTracks().forEach(track => track.stop());
-//                 mediaStreamRef.current = null;
-//             }
-
-//             if (micSourceRef.current) {
-//                 micSourceRef.current.disconnect();
-//                 micSourceRef.current = null;
-//             }
-
-//             setIsMicActive(false);
-//             setIsMixing(false);
-//             setMicLevel(0);
-
-//             Swal.fire({
-//                 icon: 'info',
-//                 title: '🎙️ Micrófono desactivado',
-//                 background: '#1a1a2e',
-//                 color: '#fff',
-//                 confirmButtonColor: '#8b5cf6',
-//                 timer: 1500,
-//                 showConfirmButton: false
-//             });
-//         }
-//     };
-
-//     // Monitorear nivel del micrófono (para visualización)
-//     const monitorMicLevel = () => {
-//         if (!analyserRef.current) return;
-
-//         const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-
-//         const checkLevel = () => {
-//             if (!analyserRef.current || !isMicActive) return;
-
-//             analyserRef.current.getByteFrequencyData(dataArray);
-//             const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-//             setMicLevel(average / 255); // Normalizar a 0-1
-
-//             requestAnimationFrame(checkLevel);
-//         };
-
-//         checkLevel();
-//     };
-
-//     // Conectar música al Web Audio Context
-//     useEffect(() => {
-//         const audio = audioRef.current;
-//         if (!audio || !isOwner) return;
-
-//         if (isPlaying && radio.isLive) {
-//             initializeAudioContext();
-
-//             // Si ya hay un source, no crear otro
-//             if (!trackSourceRef.current && audioContextRef.current) {
-//                 trackSourceRef.current = audioContextRef.current.createMediaElementSource(audio);
-//                 if (musicGainRef.current) {
-//                     trackSourceRef.current.connect(musicGainRef.current);
-//                 }
-//             }
-//         }
-//     }, [isPlaying, radio.isLive, isOwner]);
-
-//     // Actualizar volúmenes
-//     useEffect(() => {
-//         if (micGainRef.current) {
-//             micGainRef.current.gain.value = micVolume;
-//         }
-//     }, [micVolume]);
-
-//     useEffect(() => {
-//         if (musicGainRef.current) {
-//             musicGainRef.current.gain.value = musicVolume;
-//         }
-//     }, [musicVolume]);
-
-//     // Limpiar recursos al desmontar
-//     useEffect(() => {
-//         return () => {
-//             if (mediaStreamRef.current) {
-//                 mediaStreamRef.current.getTracks().forEach(track => track.stop());
-//             }
-//             if (audioContextRef.current) {
-//                 audioContextRef.current.close();
-//             }
-//         };
-//     }, []);
-
-//     // Stream handling para oyentes (código original)
-//     useEffect(() => {
-//         const audio = audioRef.current;
-//         if (!audio || isOwner) return; // Los dueños no usan este audio element
-
-//         if (!radio.isLive) {
-//             if (isPlaying) {
-//                 audio.pause();
-//                 audio.src = '';
-//             }
-//             return;
-//         }
-
-//         if (!radio.streamUrl || radio.streamUrl.trim() === '') {
-//             setStreamError('Stream no configurado');
-//             if (isPlaying) {
-//                 audio.pause();
-//                 audio.src = '';
-//             }
-//             return;
-//         }
-
-//         if (isPlaying) {
-//             setIsLoadingStream(true);
-//             setStreamError(null);
-
-//             const streamUrlWithTimestamp = `${radio.streamUrl}?t=${Date.now()}`;
-//             audio.src = streamUrlWithTimestamp;
-
-//             const attemptPlay = async (retries = 3) => {
-//                 for (let i = 0; i < retries; i++) {
-//                     try {
-//                         await audio.play();
-//                         setIsLoadingStream(false);
-//                         setStreamError(null);
-//                         return;
-//                     } catch (error) {
-//                         if (i === retries - 1) {
-//                             setStreamError('No se pudo conectar al stream.');
-//                             setIsLoadingStream(false);
-//                         } else {
-//                             await new Promise(resolve => setTimeout(resolve, 1000));
-//                         }
-//                     }
-//                 }
-//             };
-
-//             attemptPlay();
-//         } else {
-//             audio.pause();
-//             audio.src = '';
-//             setIsLoadingStream(false);
-//             setStreamError(null);
-//         }
-//     }, [isPlaying, radio.isLive, radio.streamUrl, isOwner]);
+//     // ⭐ USAR EL HOOK useRadioStream
+//     const {
+//         isLoadingStream,
+//         streamError,
+//         listenerCount
+//     } = useRadioStream({
+//         sessionId: radio._id,
+//         isOwner,
+//         isPlaying
+//     });
 
 //     return (
 //         <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-blue-900 rounded-xl p-4 md:p-6 shadow-2xl">
-//             {/* Audio element solo para oyentes */}
-//             {!isOwner && (
-//                 <audio
-//                     ref={audioRef}
-//                     crossOrigin="anonymous"
-//                     preload="none"
-//                 />
-//             )}
-
 //             <div className="flex flex-col gap-4">
 //                 {/* Primera fila: Controles principales */}
 //                 <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6">
@@ -1066,13 +844,13 @@
 //                                     OFF LINE
 //                                 </span>
 //                             )}
-//                             {isMicActive && (
+//                             {isOwner && isPlaying && radio.isLive && (
 //                                 <span className="bg-green-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1 animate-pulse">
 //                                     <Mic size={12} />
-//                                     MICRÓFONO ACTIVO
+//                                     TRANSMITIENDO
 //                                 </span>
 //                             )}
-//                             {isPlaying && !streamError && (
+//                             {!isOwner && isPlaying && !streamError && (
 //                                 <span className="bg-green-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1">
 //                                     <Volume2 size={12} />
 //                                     ESCUCHANDO
@@ -1106,6 +884,12 @@
 //                             <Heart size={18} fill={hasLiked ? 'currentColor' : 'none'} />
 //                             <span className="text-sm">{radio.likes}</span>
 //                         </button>
+
+//                         {/* Mostrar contador de oyentes */}
+//                         <div className="flex items-center gap-1 px-3 py-1 rounded-lg bg-white/10 text-white/80">
+//                             <Users size={18} />
+//                             <span className="text-sm">{listenerCount}</span>
+//                         </div>
 
 //                         {(isOwner && canTransmit) && (
 //                             <button
@@ -1141,105 +925,13 @@
 //                     </div>
 //                 </div>
 
-//                 {/* ⭐ CONTROLES DE MICRÓFONO Y MEZCLA (Solo para el dueño) */}
-//                 {isOwner && canTransmit && radio.isLive && (
-//                     <div className="bg-white/5 rounded-lg p-4 border border-purple-500/30">
-//                         <div className="flex items-center justify-between mb-4">
-//                             <h4 className="text-white font-semibold flex items-center gap-2">
-//                                 <Zap size={18} className="text-yellow-400" />
-//                                 Control de Mezcla en Vivo
-//                             </h4>
-//                             <button
-//                                 onClick={toggleMicrophone}
-//                                 className={`px-4 py-2 rounded-lg font-semibold transition-all flex items-center gap-2 ${isMicActive
-//                                         ? 'bg-red-500 hover:bg-red-600 text-white'
-//                                         : 'bg-green-500 hover:bg-green-600 text-white'
-//                                     }`}
-//                             >
-//                                 {isMicActive ? (
-//                                     <>
-//                                         <Mic size={18} />
-//                                         Desactivar Micrófono
-//                                     </>
-//                                 ) : (
-//                                     <>
-//                                         <Mic size={18} />
-//                                         Activar Micrófono
-//                                     </>
-//                                 )}
-//                             </button>
-//                         </div>
-
-//                         {/* Controles de volumen */}
-//                         <div className="space-y-4">
-//                             {/* Volumen del micrófono */}
-//                             <div>
-//                                 <div className="flex items-center justify-between mb-2">
-//                                     <label className="text-white/80 text-sm flex items-center gap-2">
-//                                         <Mic size={16} />
-//                                         Volumen Micrófono
-//                                     </label>
-//                                     <span className="text-white/60 text-sm">{Math.round(micVolume * 100)}%</span>
-//                                 </div>
-//                                 <input
-//                                     type="range"
-//                                     min="0"
-//                                     max="1"
-//                                     step="0.01"
-//                                     value={micVolume}
-//                                     onChange={(e) => setMicVolume(parseFloat(e.target.value))}
-//                                     disabled={!isMicActive}
-//                                     className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-//                                     style={{
-//                                         background: isMicActive
-//                                             ? `linear-gradient(to right, #ef4444 0%, #dc2626 ${micVolume * 100}%, rgba(255,255,255,0.2) ${micVolume * 100}%, rgba(255,255,255,0.2) 100%)`
-//                                             : 'rgba(255,255,255,0.1)'
-//                                     }}
-//                                 />
-//                                 {/* Indicador de nivel del micrófono */}
-//                                 {isMicActive && (
-//                                     <div className="mt-2 h-2 bg-white/10 rounded-full overflow-hidden">
-//                                         <div
-//                                             className="h-full bg-gradient-to-r from-green-500 to-red-500 transition-all duration-100"
-//                                             style={{ width: `${micLevel * 100}%` }}
-//                                         />
-//                                     </div>
-//                                 )}
-//                             </div>
-
-//                             {/* Volumen de la música */}
-//                             <div>
-//                                 <div className="flex items-center justify-between mb-2">
-//                                     <label className="text-white/80 text-sm flex items-center gap-2">
-//                                         <Music size={16} />
-//                                         Volumen Música
-//                                     </label>
-//                                     <span className="text-white/60 text-sm">{Math.round(musicVolume * 100)}%</span>
-//                                 </div>
-//                                 <input
-//                                     type="range"
-//                                     min="0"
-//                                     max="1"
-//                                     step="0.01"
-//                                     value={musicVolume}
-//                                     onChange={(e) => setMusicVolume(parseFloat(e.target.value))}
-//                                     className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer"
-//                                     style={{
-//                                         background: `linear-gradient(to right, #8b5cf6 0%, #6d28d9 ${musicVolume * 100}%, rgba(255,255,255,0.2) ${musicVolume * 100}%, rgba(255,255,255,0.2) 100%)`
-//                                     }}
-//                                 />
-//                             </div>
-//                         </div>
-
-//                         {/* Estado de la mezcla */}
-//                         {isMixing && (
-//                             <div className="mt-4 bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex items-center gap-2">
-//                                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-//                                 <p className="text-green-300 text-sm">
-//                                     Mezcla activa: Micrófono + Música en tiempo real
-//                                 </p>
-//                             </div>
-//                         )}
+//                 {/* Mensaje informativo para el dueño */}
+//                 {isOwner && isPlaying && radio.isLive && (
+//                     <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex items-center gap-2">
+//                         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+//                         <p className="text-green-300 text-sm">
+//                             🎤 Tu micrófono está siendo transmitido en vivo a {listenerCount} oyente{listenerCount !== 1 ? 's' : ''}
+//                         </p>
 //                     </div>
 //                 )}
 
@@ -1258,7 +950,7 @@
 //                         <Radio className="text-gray-400" size={18} />
 //                         <p className="text-gray-300 text-sm">
 //                             {isOwner && canTransmit
-//                                 ? 'Haz clic en "Iniciar" para comenzar a transmitir en vivo'
+//                                 ? 'Haz clic en "Iniciar" para comenzar a transmitir en vivo con tu micrófono'
 //                                 : 'Esta radio está fuera de línea en este momento'}
 //                         </p>
 //                     </div>
@@ -1364,8 +1056,8 @@
 //     return (
 //         <div
 //             className={`group flex flex-col gap-2 p-3 md:p-4 rounded-lg transition-all ${isPlaying
-//                     ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-2 border-purple-500/50'
-//                     : 'bg-white/5 hover:bg-white/10 border-2 border-transparent'
+//                 ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-2 border-purple-500/50'
+//                 : 'bg-white/5 hover:bg-white/10 border-2 border-transparent'
 //                 }`}
 //         >
 //             {/* Solo el dueño tiene el elemento de audio para control */}
@@ -2499,20 +2191,39 @@
 
 
 
-
-
 'use client';
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useParams } from 'next/navigation';
-import { Play, Pause, Volume2, VolumeX, Users, Send, Trash2, GripVertical, Shield, Music, Share2, Settings, User, Check, X, Crown, Headphones, Mic, Upload, Edit2, Heart, SkipForward, Radio, Zap, Plus } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Users, Send, Trash2, GripVertical, Shield, Music, Share2, Settings, User, Check, X, Crown, Headphones, Mic, Upload, Edit2, Heart, SkipForward, Radio, Zap, Plus, MicOff, Ban } from 'lucide-react';
 import { UserContext } from "../../context/UserContext";
 import { useReproductor } from '../../context/ReproductorContext';
 import { Cancion } from "../../components/Reproductor";
 import Swal from 'sweetalert2';
 import { useRadioStream } from '../../hooks/useRadioStream';
+import  MusicaPlayer from "../../MusicaPlayer/page";
+
+
 // ============================================================================
 // TIPOS Y INTERFACES
 // ============================================================================
+
+// En tu archivo de radio, agrega este import
+
+// Modifica la interfaz Track para incluir el flag de memoria
+interface Track {
+    _id: string;
+    radioId: string;
+    title: string;
+    artist: string;
+    url: string;
+    duration: number;
+    order: number;
+    isInMemory?: boolean; // Nueva propiedad
+    file?: File; // Nueva propiedad para archivos en memoria
+}
+
+// En el componente RadioSystem, reemplaza el componente Playlist existente por:
+
 
 
 interface User {
@@ -2571,7 +2282,6 @@ interface TrackMetadata {
 // ============================================================================
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-zoonito-6x8h.vercel.app/api';
-
 
 const api = {
     async getRadio(radioId: string): Promise<RadioStation | null> {
@@ -2668,36 +2378,6 @@ const api = {
         }
     },
 
-    async toggleAutomate(radioId: string, token: string): Promise<RadioStation | null> {
-        try {
-            if (!token?.includes('.')) return null;
-            const res = await fetch(`${API_URL}/radio/${radioId}/automate`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token.trim()}` }
-            });
-            if (!res.ok) return null;
-            return res.json();
-        } catch (error) {
-            console.error('Error toggling automation:', error);
-            return null;
-        }
-    },
-
-    async generateGuestCode(radioId: string, token: string): Promise<RadioStation | null> {
-        try {
-            if (!token?.includes('.')) return null;
-            const res = await fetch(`${API_URL}/radio/${radioId}/guest-code`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token.trim()}` }
-            });
-            if (!res.ok) return null;
-            return res.json();
-        } catch (error) {
-            console.error('Error generating guest code:', error);
-            return null;
-        }
-    },
-
     async getTracks(radioId: string): Promise<Track[]> {
         try {
             const res = await fetch(`${API_URL}/radio/${radioId}/tracks`);
@@ -2775,6 +2455,20 @@ const api = {
         }
     },
 
+    async deleteMessage(radioId: string, messageId: string, token: string): Promise<boolean> {
+        try {
+            if (!token?.includes('.')) return false;
+            const res = await fetch(`${API_URL}/radio/${radioId}/chat/${messageId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token.trim()}` }
+            });
+            return res.ok;
+        } catch (error) {
+            console.error('Error deleting message:', error);
+            return false;
+        }
+    },
+
     async toggleLike(radioId: string, token: string): Promise<{ liked: boolean } | null> {
         try {
             if (!token?.includes('.')) return null;
@@ -2806,7 +2500,6 @@ const api = {
         }
     },
 
-    // ⭐ NUEVAS FUNCIONES PARA OYENTES
     async registerListener(radioId: string, token: string): Promise<{ listeners: number } | null> {
         try {
             if (!token?.includes('.')) return null;
@@ -2834,8 +2527,24 @@ const api = {
             console.error('Error unregistering listener:', error);
             return false;
         }
+    },
+
+    async generateGuestCode(radioId: string, token: string): Promise<RadioStation | null> {
+        try {
+            if (!token?.includes('.')) return null;
+            const res = await fetch(`${API_URL}/radio/${radioId}/guest-code`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token.trim()}` }
+            });
+            if (!res.ok) return null;
+            return res.json();
+        } catch (error) {
+            console.error('Error generating guest code:', error);
+            return null;
+        }
     }
 };
+
 // ============================================================================
 // COMPONENTE: MODAL DE PERFIL
 // ============================================================================
@@ -3003,15 +2712,14 @@ const EditRadioModal: React.FC<EditRadioModalProps> = ({ radio, onClose, onUpdat
         formData.append('name', name);
         formData.append('description', description);
 
-        // Subir logo a Cloudinary si hay uno nuevo
         if (logo) {
             try {
                 const cloudinaryFormData = new FormData();
                 cloudinaryFormData.append('file', logo);
-                cloudinaryFormData.append('upload_preset', 'zoonity_radios'); // 👈 Cambia esto por tu preset
+                cloudinaryFormData.append('upload_preset', 'zoonity_radios');
 
                 const cloudinaryRes = await fetch(
-                    'https://api.cloudinary.com/v1_1/dplncudbq/image/upload', // 👈 Cambia por tu cloud name
+                    'https://api.cloudinary.com/v1_1/dplncudbq/image/upload',
                     {
                         method: 'POST',
                         body: cloudinaryFormData
@@ -3020,7 +2728,7 @@ const EditRadioModal: React.FC<EditRadioModalProps> = ({ radio, onClose, onUpdat
 
                 if (cloudinaryRes.ok) {
                     const data = await cloudinaryRes.json();
-                    formData.append('logo', data.secure_url); // Enviar URL al backend
+                    formData.append('logo', data.secure_url);
                 } else {
                     throw new Error('Error al subir imagen a Cloudinary');
                 }
@@ -3260,16 +2968,20 @@ const ShareModal: React.FC<ShareModalProps> = ({ radio, onClose }) => {
 };
 
 // ============================================================================
-// COMPONENTE: REPRODUCTOR PRINCIPAL DE RADIO EN VIVO CON MICRÓFONO
+// COMPONENTE: REPRODUCTOR PRINCIPAL CON CONTROL DE MICRÓFONO
 // ============================================================================
-
-// REEMPLAZAR el componente Player completo con este:
 
 interface PlayerProps {
     radio: RadioStation;
     currentTrack: Track | null;
     isPlaying: boolean;
+    isMicMuted: boolean;
+    micVolume: number;
+    musicVolume: number;
     onPlayPause: () => void;
+    onToggleMic: () => void;
+    onMicVolumeChange: (volume: number) => void;
+    onMusicVolumeChange: (volume: number) => void;
     onShare: () => void;
     onEdit: () => void;
     onToggleLike: () => void;
@@ -3283,7 +2995,13 @@ const Player: React.FC<PlayerProps> = ({
     radio,
     currentTrack,
     isPlaying,
+    isMicMuted,
+    micVolume,
+    musicVolume,
     onPlayPause,
+    onToggleMic,
+    onMicVolumeChange,
+    onMusicVolumeChange,
     onShare,
     onEdit,
     onToggleLike,
@@ -3292,7 +3010,6 @@ const Player: React.FC<PlayerProps> = ({
     isOwner,
     canTransmit
 }) => {
-    // ⭐ USAR EL HOOK useRadioStream
     const {
         isLoadingStream,
         streamError,
@@ -3303,10 +3020,11 @@ const Player: React.FC<PlayerProps> = ({
         isPlaying
     });
 
+    const [showVolumeControls, setShowVolumeControls] = useState(false);
+
     return (
         <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-blue-900 rounded-xl p-4 md:p-6 shadow-2xl">
             <div className="flex flex-col gap-4">
-                {/* Primera fila: Controles principales */}
                 <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6">
                     <div className="flex items-center gap-4 w-full md:w-auto">
                         <button
@@ -3323,9 +3041,26 @@ const Player: React.FC<PlayerProps> = ({
                             )}
                         </button>
 
+                        {/* Botón de mutear micrófono (solo para el dueño cuando está transmitiendo) */}
+                        {isOwner && canTransmit && radio.isLive && (
+                            <button
+                                onClick={onToggleMic}
+                                className={`w-12 h-12 md:w-14 md:h-14 rounded-full transition-all flex items-center justify-center flex-shrink-0 ${isMicMuted
+                                        ? 'bg-red-500/20 hover:bg-red-500/30 border-2 border-red-500'
+                                        : 'bg-green-500/20 hover:bg-green-500/30 border-2 border-green-500'
+                                    }`}
+                            >
+                                {isMicMuted ? (
+                                    <MicOff className="w-5 h-5 md:w-6 md:h-6 text-red-400" />
+                                ) : (
+                                    <Mic className="w-5 h-5 md:w-6 md:h-6 text-green-400" />
+                                )}
+                            </button>
+                        )}
+
                         <div className="w-14 h-14 md:w-16 md:h-16 rounded-xl bg-white/10 overflow-hidden flex-shrink-0">
                             {radio.logo ? (
-                                <img src={radio.logo} alt={radio.name} className="w-full h-full object-cover" />
+                                <img src='../../assets/zoonito.jpg' alt={radio.name} className="w-full h-full object-cover" />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-500 to-blue-500">
                                     <Radio size={24} className="text-white" />
@@ -3348,10 +3083,18 @@ const Player: React.FC<PlayerProps> = ({
                                 </span>
                             )}
                             {isOwner && isPlaying && radio.isLive && (
-                                <span className="bg-green-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1 animate-pulse">
-                                    <Mic size={12} />
-                                    TRANSMITIENDO
-                                </span>
+                                <>
+                                    <span className="bg-green-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1 animate-pulse">
+                                        <Mic size={12} />
+                                        TRANSMITIENDO
+                                    </span>
+                                    {isMicMuted && (
+                                        <span className="bg-red-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1">
+                                            <MicOff size={12} />
+                                            MIC MUTEADO
+                                        </span>
+                                    )}
+                                </>
                             )}
                             {!isOwner && isPlaying && !streamError && (
                                 <span className="bg-green-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1">
@@ -3388,7 +3131,6 @@ const Player: React.FC<PlayerProps> = ({
                             <span className="text-sm">{radio.likes}</span>
                         </button>
 
-                        {/* Mostrar contador de oyentes */}
                         <div className="flex items-center gap-1 px-3 py-1 rounded-lg bg-white/10 text-white/80">
                             <Users size={18} />
                             <span className="text-sm">{listenerCount}</span>
@@ -3428,17 +3170,126 @@ const Player: React.FC<PlayerProps> = ({
                     </div>
                 </div>
 
-                {/* Mensaje informativo para el dueño */}
+                {/* Controles de volumen para el dueño */}
+                {isOwner && canTransmit && radio.isLive && (
+                    <div className="bg-white/5 border border-purple-500/30 rounded-lg p-4">
+                        <button
+                            onClick={() => setShowVolumeControls(!showVolumeControls)}
+                            className="w-full flex items-center justify-between text-white mb-3"
+                        >
+                            <span className="flex items-center gap-2 font-semibold">
+                                <Volume2 size={18} />
+                                Controles de Volumen
+                            </span>
+                            <span className="text-xs text-white/60">
+                                {showVolumeControls ? '▼' : '▶'}
+                            </span>
+                        </button>
+
+                        {showVolumeControls && (
+                            <div className="space-y-4">
+                                <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-white/80 text-sm flex items-center gap-2">
+                                            <Mic size={16} />
+                                            Volumen del Micrófono
+                                        </label>
+                                        <span className="text-purple-300 text-sm font-semibold">
+                                            {Math.round(micVolume * 100)}%
+                                        </span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="1"
+                                        step="0.01"
+                                        value={micVolume}
+                                        onChange={(e) => onMicVolumeChange(parseFloat(e.target.value))}
+                                        className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                        style={{
+                                            background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${micVolume * 100}%, rgba(255,255,255,0.1) ${micVolume * 100}%, rgba(255,255,255,0.1) 100%)`
+                                        }}
+                                    />
+                                    <div className="flex justify-between text-xs text-white/40 mt-1">
+                                        <span>Silencio</span>
+                                        <span>Máximo</span>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-white/80 text-sm flex items-center gap-2">
+                                            <Music size={16} />
+                                            Volumen de la Música
+                                        </label>
+                                        <span className="text-blue-300 text-sm font-semibold">
+                                            {Math.round(musicVolume * 100)}%
+                                        </span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="1"
+                                        step="0.01"
+                                        value={musicVolume}
+                                        onChange={(e) => onMusicVolumeChange(parseFloat(e.target.value))}
+                                        className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                        style={{
+                                            background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${musicVolume * 100}%, rgba(255,255,255,0.1) ${musicVolume * 100}%, rgba(255,255,255,0.1) 100%)`
+                                        }}
+                                    />
+                                    <div className="flex justify-between text-xs text-white/40 mt-1">
+                                        <span>Silencio</span>
+                                        <span>Máximo</span>
+                                    </div>
+                                </div>
+
+                                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                                    <p className="text-blue-300 text-xs">
+                                        💡 <strong>Tip:</strong> Baja la música al 30-40% cuando hables para que tu voz se escuche clara (efecto- bajo cortina).
+                                    </p>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => {
+                                            onMicVolumeChange(1);
+                                            onMusicVolumeChange(0.3);
+                                        }}
+                                        className="flex-1 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 py-2 px-3 rounded-lg text-xs transition-colors border border-purple-500/30"
+                                    >
+                                        🎤 Modo Locutor
+                                        <span className="block text-[10px] text-white/40">Mic 100% • Música 30%</span>
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            onMicVolumeChange(0.5);
+                                            onMusicVolumeChange(1);
+                                        }}
+                                        className="flex-1 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 py-2 px-3 rounded-lg text-xs transition-colors border border-blue-500/30"
+                                    >
+                                        🎵 Modo Musical
+                                        <span className="block text-[10px] text-white/40">Mic 50% • Música 100%</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {isOwner && isPlaying && radio.isLive && (
-                    <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                        <p className="text-green-300 text-sm">
-                            🎤 Tu micrófono está siendo transmitido en vivo a {listenerCount} oyente{listenerCount !== 1 ? 's' : ''}
+                    <div className={`border rounded-lg p-3 flex items-center gap-2 ${isMicMuted ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/10 border-green-500/30'
+                        }`}>
+                        <div className={`w-2 h-2 rounded-full ${isMicMuted ? 'bg-red-500' : 'bg-green-500 animate-pulse'}`} />
+                        <p className={`text-sm ${isMicMuted ? 'text-red-300' : 'text-green-300'}`}>
+                            {isMicMuted
+                                ? '🔇 Tu micrófono está silenciado. Los oyentes no te escuchan.'
+                                : `🎤 Tu micrófono está transmitiendo en vivo a ${listenerCount} oyente${listenerCount !== 1 ? 's' : ''}`
+                            }
                         </p>
                     </div>
                 )}
 
-                {/* Avisos y alertas */}
                 {!canTransmit && !isOwner && (
                     <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 flex items-start gap-2">
                         <Shield className="text-yellow-400 flex-shrink-0 mt-0.5" size={18} />
@@ -3464,7 +3315,7 @@ const Player: React.FC<PlayerProps> = ({
 };
 
 // ============================================================================
-// COMPONENTE: ITEM DE PLAYLIST CON REPRODUCTOR (SOLO PARA EL DUEÑO)
+// COMPONENTE: ITEM DE PLAYLIST
 // ============================================================================
 
 interface PlaylistItemProps {
@@ -3492,12 +3343,13 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
     const [isLoadingDuration, setIsLoadingDuration] = useState(track.duration === 0);
     const progressBarRef = useRef<HTMLDivElement>(null);
 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-zoonito-6x8h.vercel.app/api';
     const audioUrl = track.url.startsWith('http')
         ? track.url
         : `${API_URL.replace('/api', '')}${track.url}`;
 
     useEffect(() => {
-        if (!isOwner) return; // Solo el dueño puede controlar la reproducción
+        if (!isOwner) return;
 
         if (isPlaying && audioRef.current) {
             audioRef.current.play().catch(error => {
@@ -3559,11 +3411,10 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
     return (
         <div
             className={`group flex flex-col gap-2 p-3 md:p-4 rounded-lg transition-all ${isPlaying
-                ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-2 border-purple-500/50'
-                : 'bg-white/5 hover:bg-white/10 border-2 border-transparent'
+                    ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-2 border-purple-500/50'
+                    : 'bg-white/5 hover:bg-white/10 border-2 border-transparent'
                 }`}
         >
-            {/* Solo el dueño tiene el elemento de audio para control */}
             {isOwner && (
                 <audio
                     ref={audioRef}
@@ -3579,7 +3430,6 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
             )}
 
             <div className="flex items-center gap-3">
-                {/* Solo el dueño puede controlar play/pause */}
                 {isOwner ? (
                     <button
                         onClick={isPlaying ? onPause : onPlay}
@@ -3635,7 +3485,6 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
                 )}
             </div>
 
-            {/* Barra de progreso solo visible/funcional para el dueño */}
             {isOwner && (
                 <div
                     ref={progressBarRef}
@@ -3653,7 +3502,7 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
 };
 
 // ============================================================================
-// COMPONENTE: PLAYLIST CON UPLOAD Y REPRODUCTOR
+// COMPONENTE: PLAYLIST
 // ============================================================================
 
 interface PlaylistProps {
@@ -3665,8 +3514,9 @@ interface PlaylistProps {
     onDeleteTrack: (trackId: string) => void;
     onUploadTrack: (file: File, metadata: TrackMetadata) => Promise<void>;
     canEdit: boolean;
-    isOwner: boolean; // Agregar esta prop
+    isOwner: boolean;
 }
+
 const Playlist: React.FC<PlaylistProps> = ({
     radioId,
     radio,
@@ -3676,7 +3526,7 @@ const Playlist: React.FC<PlaylistProps> = ({
     onDeleteTrack,
     onUploadTrack,
     canEdit,
-    isOwner // Recibir la prop
+    isOwner
 }) => {
     const [isUploading, setIsUploading] = useState(false);
     const [showUploadForm, setShowUploadForm] = useState(false);
@@ -3886,7 +3736,7 @@ const Playlist: React.FC<PlaylistProps> = ({
                             onPause={() => handlePause(track._id)}
                             onDelete={() => onDeleteTrack(track._id)}
                             canEdit={canEdit}
-                            isOwner={isOwner} // Pasar la prop
+                            isOwner={isOwner}
                         />
                     ))
                 )}
@@ -3896,27 +3746,31 @@ const Playlist: React.FC<PlaylistProps> = ({
 };
 
 // ============================================================================
-// COMPONENTE: CHAT
+// COMPONENTE: CHAT CON MODERACIÓN
 // ============================================================================
 
 interface ChatProps {
     radioId: string;
     messages: ChatMessage[];
     onSendMessage: (text: string) => void;
+    onDeleteMessage: (messageId: string) => void;
     isFrozen: boolean;
     canModerate: boolean;
     onToggleFreeze: () => void;
     listeners: number;
+    currentUserId?: string;
 }
 
 const Chat: React.FC<ChatProps> = ({
     radioId,
     messages,
     onSendMessage,
+    onDeleteMessage,
     isFrozen,
     canModerate,
     onToggleFreeze,
-    listeners
+    listeners,
+    currentUserId
 }) => {
     const [inputValue, setInputValue] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -3930,6 +3784,25 @@ const Chat: React.FC<ChatProps> = ({
             onSendMessage(inputValue);
             setInputValue('');
         }
+    };
+
+    const handleDeleteMessage = (messageId: string) => {
+        Swal.fire({
+            icon: 'question',
+            title: '¿Eliminar mensaje?',
+            text: 'Esta acción no se puede deshacer',
+            background: '#1a1a2e',
+            color: '#fff',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                onDeleteMessage(messageId);
+            }
+        });
     };
 
     return (
@@ -3947,17 +3820,37 @@ const Chat: React.FC<ChatProps> = ({
                     {canModerate && (
                         <button
                             onClick={onToggleFreeze}
-                            className={`px-2 md:px-3 py-1 rounded-lg text-xs md:text-sm transition-colors ${isFrozen
-                                ? 'bg-red-500/20 text-red-300 border border-red-500/50'
-                                : 'bg-green-500/20 text-green-300 border border-green-500/50'
+                            className={`px-2 md:px-3 py-1 rounded-lg text-xs md:text-sm transition-colors flex items-center gap-1 ${isFrozen
+                                    ? 'bg-red-500/20 text-red-300 border border-red-500/50'
+                                    : 'bg-green-500/20 text-green-300 border border-green-500/50'
                                 }`}
                         >
-                            <Shield size={14} className="inline mr-1" />
-                            {isFrozen ? 'Congelado' : 'Activo'}
+                            {isFrozen ? (
+                                <>
+                                    <Ban size={14} />
+                                    <span className="hidden sm:inline">Congelado</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Shield size={14} />
+                                    <span className="hidden sm:inline">Activo</span>
+                                </>
+                            )}
                         </button>
                     )}
                 </div>
             </div>
+
+            {isFrozen && (
+                <div className="mb-3 bg-red-500/10 border border-red-500/30 rounded-lg p-2 flex items-center gap-2">
+                    <Ban className="text-red-400" size={16} />
+                    <p className="text-red-300 text-xs">
+                        {canModerate
+                            ? 'Chat congelado. Solo tú puedes escribir.'
+                            : 'El chat está congelado por el moderador.'}
+                    </p>
+                </div>
+            )}
 
             <div className="flex-1 overflow-y-auto space-y-3 mb-4">
                 {messages.length === 0 ? (
@@ -3968,7 +3861,7 @@ const Chat: React.FC<ChatProps> = ({
                     </div>
                 ) : (
                     messages.map((msg) => (
-                        <div key={msg._id} className="bg-white/5 rounded-lg p-2 md:p-3">
+                        <div key={msg._id} className="bg-white/5 rounded-lg p-2 md:p-3 group relative">
                             <div className="flex items-center gap-2 mb-1">
                                 {msg.userAvatar && (
                                     <img
@@ -3981,6 +3874,15 @@ const Chat: React.FC<ChatProps> = ({
                                 <span className="text-white/40 text-xs">
                                     {new Date(msg.createdAt).toLocaleTimeString()}
                                 </span>
+                                {canModerate && (
+                                    <button
+                                        onClick={() => handleDeleteMessage(msg._id)}
+                                        className="ml-auto opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-all"
+                                        title="Eliminar mensaje"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                )}
                             </div>
                             <p className="text-white/90 text-sm md:text-base">{msg.text}</p>
                         </div>
@@ -3995,13 +3897,13 @@ const Chat: React.FC<ChatProps> = ({
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder={isFrozen ? 'Chat congelado...' : 'Escribe un mensaje...'}
-                    disabled={isFrozen}
+                    placeholder={isFrozen && !canModerate ? 'Chat congelado...' : 'Escribe un mensaje...'}
+                    disabled={isFrozen && !canModerate}
                     className="flex-1 bg-white/10 text-white rounded-lg px-3 md:px-4 py-2 outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 text-sm md:text-base"
                 />
                 <button
                     onClick={handleSend}
-                    disabled={isFrozen || !inputValue.trim()}
+                    disabled={(isFrozen && !canModerate) || !inputValue.trim()}
                     className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white px-3 md:px-4 py-2 rounded-lg transition-colors"
                 >
                     <Send size={18} />
@@ -4111,9 +4013,6 @@ const RadioSystem: React.FC = () => {
     const params = useParams();
     const radioId = (params?.id as string);
 
-    console.log('🔍 RadioId desde URL:', radioId);
-    console.log('🔍 Params completos:', params);
-
     const { user, loginUser } = useContext(UserContext);
     const { agregarCancion } = useReproductor();
 
@@ -4137,6 +4036,9 @@ const RadioSystem: React.FC = () => {
     const [tracks, setTracks] = useState<Track[]>([]);
     const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [isMicMuted, setIsMicMuted] = useState(false);
+    const [micVolume, setMicVolume] = useState(1);
+    const [musicVolume, setMusicVolume] = useState(0.7);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isChatFrozen, setIsChatFrozen] = useState(false);
     const [hasLiked, setHasLiked] = useState(false);
@@ -4147,15 +4049,12 @@ const RadioSystem: React.FC = () => {
 
     const listenerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-    // AGREGAR este useEffect:
     useEffect(() => {
         const token = getToken();
         if (!token || !isPlaying || !radio?.isLive) return;
 
-        // Registrar inmediatamente
         api.registerListener(radioId, token);
 
-        // Ping cada 15 segundos
         listenerIntervalRef.current = setInterval(async () => {
             await api.registerListener(radioId, token);
         }, 15000);
@@ -4167,6 +4066,7 @@ const RadioSystem: React.FC = () => {
             api.unregisterListener(radioId, token);
         };
     }, [isPlaying, radio?.isLive, radioId]);
+
     useEffect(() => {
         loadData();
         const interval = setInterval(() => {
@@ -4291,15 +4191,7 @@ const RadioSystem: React.FC = () => {
 
         const newLiveState = !radio.isLive;
 
-        console.log('🎙️ Cambiando estado de transmisión...');
-        console.log('Radio ID:', radio._id); // Este es el ID real de la radio
-        console.log('Estado actual:', radio.isLive);
-        console.log('Nuevo estado:', newLiveState);
-
-        // Usar el _id de la radio, no el radioId de la URL
         const updatedRadio = await api.toggleLive(radio._id, token, newLiveState);
-
-        console.log('Respuesta del servidor:', updatedRadio);
 
         if (updatedRadio) {
             setRadio(updatedRadio);
@@ -4308,11 +4200,11 @@ const RadioSystem: React.FC = () => {
                 const freshRadio = await api.getRadio(radioId);
                 if (freshRadio) {
                     setRadio(freshRadio);
-                    console.log('✅ Radio actualizada desde el servidor:', freshRadio.isLive);
                 }
             }, 500);
 
             if (newLiveState) {
+                setIsMicMuted(false);
                 Swal.fire({
                     icon: 'success',
                     title: '¡Transmisión iniciada!',
@@ -4325,6 +4217,7 @@ const RadioSystem: React.FC = () => {
                 });
             } else {
                 setIsPlaying(false);
+                setIsMicMuted(false);
                 Swal.fire({
                     icon: 'info',
                     title: 'Transmisión detenida',
@@ -4337,7 +4230,6 @@ const RadioSystem: React.FC = () => {
                 });
             }
         } else {
-            console.error('❌ No se recibió respuesta del servidor');
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
@@ -4347,6 +4239,23 @@ const RadioSystem: React.FC = () => {
                 confirmButtonColor: '#ef4444',
             });
         }
+    };
+
+    const handleToggleMic = () => {
+        setIsMicMuted(!isMicMuted);
+
+        const newState = !isMicMuted;
+
+        Swal.fire({
+            icon: newState ? 'warning' : 'success',
+            title: newState ? 'Micrófono silenciado' : 'Micrófono activo',
+            text: newState ? 'Los oyentes no te escucharán' : 'Los oyentes te pueden escuchar',
+            background: '#1a1a2e',
+            color: '#fff',
+            confirmButtonColor: '#8b5cf6',
+            timer: 1500,
+            showConfirmButton: false
+        });
     };
 
     const handlePlayPause = () => {
@@ -4462,6 +4371,25 @@ const RadioSystem: React.FC = () => {
         const newMessage = await api.sendMessage(radioId, text, token);
         if (newMessage) {
             setMessages([...messages, newMessage]);
+        }
+    };
+
+    const handleDeleteMessage = async (messageId: string) => {
+        const token = getToken();
+        if (!token) return;
+
+        const success = await api.deleteMessage(radioId, messageId, token);
+        if (success) {
+            setMessages(messages.filter(m => m._id !== messageId));
+            Swal.fire({
+                icon: 'success',
+                title: 'Mensaje eliminado',
+                background: '#1a1a2e',
+                color: '#fff',
+                confirmButtonColor: '#8b5cf6',
+                timer: 1500,
+                showConfirmButton: false
+            });
         }
     };
 
@@ -4614,7 +4542,13 @@ const RadioSystem: React.FC = () => {
                             radio={displayRadio}
                             currentTrack={currentTrack}
                             isPlaying={isPlaying}
+                            isMicMuted={isMicMuted}
+                            micVolume={micVolume}
+                            musicVolume={musicVolume}
                             onPlayPause={handlePlayPause}
+                            onToggleMic={handleToggleMic}
+                            onMicVolumeChange={setMicVolume}
+                            onMusicVolumeChange={setMusicVolume}
                             onShare={() => setShowShareModal(true)}
                             onEdit={() => setShowEditModal(true)}
                             onToggleLike={handleToggleLike}
@@ -4625,27 +4559,56 @@ const RadioSystem: React.FC = () => {
                         />
 
                         <div className="grid md:grid-cols-2 gap-4 md:gap-6">
-                            <Playlist
+                            <MusicaPlayer
                                 radioId={radioId}
-                                radio={displayRadio}
-                                tracks={tracks}
-                                currentTrack={currentTrack}
-                                onPlayTrack={handlePlayTrack}
-                                onDeleteTrack={handleDeleteTrack}
-                                onUploadTrack={handleUploadTrack}
+                                cancionesBackend={tracks} // Canciones que ya están en el backend
+                                onCancionChange={(cancion) => {
+                                    if (cancion) {
+                                        setCurrentTrack({
+                                            _id: cancion.id,
+                                            radioId: radioId,
+                                            title: cancion.titulo,
+                                            artist: cancion.artista,
+                                            url: cancion.url,
+                                            duration: cancion.duracion,
+                                            order: 0
+                                        });
+                                    } else {
+                                        setCurrentTrack(null);
+                                    }
+                                }}
+                                onUploadToBackend={async (file, metadata) => {
+                                    const token = getToken();
+                                    if (!token) throw new Error('No token');
+
+                                    const newTrack = await api.uploadTrack(radioId, file, metadata, token);
+                                    if (newTrack) {
+                                        setTracks(prev => [...prev, newTrack]);
+                                        return { url: newTrack.url };
+                                    }
+                                    throw new Error('Error al subir');
+                                }}
+                                onDeleteFromBackend={async (trackId) => {
+                                    await handleDeleteTrack(trackId);
+                                }}
                                 canEdit={isOwner && canTransmit}
                                 isOwner={isOwner}
+                                isLive={radio?.isLive || false}
+                                isMicActive={!isMicMuted && isPlaying}
                             />
+
 
                             <div className="h-[500px] md:h-[600px]">
                                 <Chat
                                     radioId={radioId}
                                     messages={messages}
                                     onSendMessage={handleSendMessage}
+                                    onDeleteMessage={handleDeleteMessage}
                                     isFrozen={isChatFrozen}
                                     canModerate={canModerate}
                                     onToggleFreeze={() => setIsChatFrozen(!isChatFrozen)}
                                     listeners={displayRadio.listeners}
+                                    currentUserId={user?._id}
                                 />
                             </div>
                         </div>
@@ -4688,6 +4651,5 @@ const RadioSystem: React.FC = () => {
         </>
     );
 };
-
 
 export default RadioSystem;
