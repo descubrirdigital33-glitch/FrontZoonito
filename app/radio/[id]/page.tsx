@@ -1,4 +1,3 @@
-
 'use client';
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useParams } from 'next/navigation';
@@ -8,7 +7,7 @@ import { useReproductor } from '../../context/ReproductorContext';
 import { Cancion } from "../../components/Reproductor";
 import Swal from 'sweetalert2';
 import { useRadioStream } from '../../hooks/useRadioStream';
-import  MusicaPlayer from "../../MusicaPlayer/page";
+import MusicaPlayer from "../../MusicaPlayer/page";
 
 
 // ============================================================================
@@ -842,18 +841,16 @@ const Player: React.FC<PlayerProps> = ({
                             <button
                                 onClick={onToggleLive}
                                 disabled={isLoadingStream}
-                                className={`w-14 h-14 md:w-16 md:h-16 rounded-full backdrop-blur-sm transition-all flex items-center justify-center group flex-shrink-0 ${
-                                    radio.isLive
+                                className={`w-14 h-14 md:w-16 md:h-16 rounded-full backdrop-blur-sm transition-all flex items-center justify-center group flex-shrink-0 ${radio.isLive
                                         ? 'bg-red-500/30 hover:bg-red-500/40 border-2 border-red-500 animate-pulse'
                                         : 'bg-gray-500/20 hover:bg-gray-500/30 border-2 border-gray-500'
-                                }`}
+                                    }`}
                             >
                                 {isLoadingStream ? (
                                     <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                 ) : (
-                                    <Radio className={`w-6 h-6 md:w-8 md:h-8 ${
-                                        radio.isLive ? 'text-red-300' : 'text-gray-400'
-                                    } group-hover:scale-110 transition-transform`} />
+                                    <Radio className={`w-6 h-6 md:w-8 md:h-8 ${radio.isLive ? 'text-red-300' : 'text-gray-400'
+                                        } group-hover:scale-110 transition-transform`} />
                                 )}
                             </button>
                         ) : (
@@ -876,11 +873,10 @@ const Player: React.FC<PlayerProps> = ({
                         {isOwner && canTransmit && radio.isLive && (
                             <button
                                 onClick={onToggleMic}
-                                className={`w-12 h-12 md:w-14 md:h-14 rounded-full transition-all flex items-center justify-center flex-shrink-0 ${
-                                    isMicMuted
+                                className={`w-12 h-12 md:w-14 md:h-14 rounded-full transition-all flex items-center justify-center flex-shrink-0 ${isMicMuted
                                         ? 'bg-red-500/20 hover:bg-red-500/30 border-2 border-red-500'
                                         : 'bg-green-500/20 hover:bg-green-500/30 border-2 border-green-500'
-                                }`}
+                                    }`}
                             >
                                 {isMicMuted ? (
                                     <MicOff className="w-5 h-5 md:w-6 md:h-6 text-red-400" />
@@ -956,9 +952,8 @@ const Player: React.FC<PlayerProps> = ({
                     <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto justify-between md:justify-end">
                         <button
                             onClick={onToggleLike}
-                            className={`flex items-center gap-1 px-3 py-1 rounded-lg transition-colors ${
-                                hasLiked ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-white/80 hover:text-white'
-                            }`}
+                            className={`flex items-center gap-1 px-3 py-1 rounded-lg transition-colors ${hasLiked ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-white/80 hover:text-white'
+                                }`}
                         >
                             <Heart size={18} fill={hasLiked ? 'currentColor' : 'none'} />
                             <span className="text-sm">{radio.likes}</span>
@@ -1097,9 +1092,8 @@ const Player: React.FC<PlayerProps> = ({
                 )}
 
                 {isOwner && radio.isLive && (
-                    <div className={`border rounded-lg p-3 flex items-center gap-2 ${
-                        isMicMuted ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/10 border-green-500/30'
-                    }`}>
+                    <div className={`border rounded-lg p-3 flex items-center gap-2 ${isMicMuted ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/10 border-green-500/30'
+                        }`}>
                         <div className={`w-2 h-2 rounded-full ${isMicMuted ? 'bg-red-500' : 'bg-green-500 animate-pulse'}`} />
                         <p className={`text-sm ${isMicMuted ? 'text-red-300' : 'text-green-300'}`}>
                             {isMicMuted
@@ -1230,8 +1224,8 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
     return (
         <div
             className={`group flex flex-col gap-2 p-3 md:p-4 rounded-lg transition-all ${isPlaying
-                    ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-2 border-purple-500/50'
-                    : 'bg-white/5 hover:bg-white/10 border-2 border-transparent'
+                ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-2 border-purple-500/50'
+                : 'bg-white/5 hover:bg-white/10 border-2 border-transparent'
                 }`}
         >
             {isOwner && (
@@ -1640,8 +1634,8 @@ const Chat: React.FC<ChatProps> = ({
                         <button
                             onClick={onToggleFreeze}
                             className={`px-2 md:px-3 py-1 rounded-lg text-xs md:text-sm transition-colors flex items-center gap-1 ${isFrozen
-                                    ? 'bg-red-500/20 text-red-300 border border-red-500/50'
-                                    : 'bg-green-500/20 text-green-300 border border-green-500/50'
+                                ? 'bg-red-500/20 text-red-300 border border-red-500/50'
+                                : 'bg-green-500/20 text-green-300 border border-green-500/50'
                                 }`}
                         >
                             {isFrozen ? (
@@ -1793,12 +1787,12 @@ const GuestControl: React.FC<GuestControlProps> = ({
                         </button>
                     ) : (
                         <div className="space-y-3">
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                                 <input
                                     type={showCode ? 'text' : 'password'}
                                     value={guestCode}
                                     readOnly
-                                    className="flex-1 bg-white/10 text-white rounded-lg px-4 py-2 font-mono text-sm"
+                                    className="flex-1 bg-white/10 text-white rounded-lg px-4 py-2 font-mono text-sm min-w-[150px]"
                                 />
                                 <button
                                     onClick={() => setShowCode(!showCode)}
@@ -1822,6 +1816,7 @@ const GuestControl: React.FC<GuestControlProps> = ({
             </div>
         </div>
     );
+
 };
 
 // ============================================================================
@@ -2472,7 +2467,6 @@ const RadioSystem: React.FC = () => {
 };
 
 export default RadioSystem;
-
 
 
 
@@ -4946,6 +4940,7 @@ export default RadioSystem;
 // };
 
 // export default RadioSystem;
+
 
 
 
