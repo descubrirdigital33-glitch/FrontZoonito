@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, Play, Pause, Trash2, Edit2, Music, SkipForward, Save, X, Check, Volume2, Radio as RadioIcon, Database, HardDrive } from 'lucide-react';
 
@@ -735,5 +736,6 @@ const MusicaPlayer: React.FC<MusicaPlayerProps> = ({
     </div>
   );
 };
+
 
 export default MusicaPlayer;
