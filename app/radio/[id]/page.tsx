@@ -845,7 +845,7 @@ const Player: React.FC<PlayerProps> = ({
                                 <Pause className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:scale-110 transition-transform" />
                             ) : (
                                  <div className="bg-red-500 rounded-full w-8 h-8 flex items-center justify-center md:w-10 md:h-10">
-                                <RadioTower size={24} className="text-white" />
+                                <Play size={24} className="text-white" />
                             </div>
                             )}
                         </button>
@@ -1248,7 +1248,7 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
                             <Pause className="w-5 h-5 text-white" />
                         ) : (
                             <div className="bg-red-500 rounded-full w-8 h-8 flex items-center justify-center md:w-10 md:h-10">
-                                <RadioTower size={24} className="text-white" />
+                                <Play size={24} className="text-white" />
                             </div>
                         )}
                     </button>
@@ -2465,4 +2465,5 @@ const RadioSystem: React.FC = () => {
 };
 
 export default RadioSystem;
+
 
