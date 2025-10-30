@@ -7,7 +7,7 @@ import { useReproductor } from '../../context/ReproductorContext';
 import { Cancion } from "../../components/Reproductor";
 import Swal from 'sweetalert2';
 import { useRadioStream } from '../../hooks/useRadioStream';
-import MusicaPlayer from "../../MusicaPlayer/page";
+import  MusicaPlayer from "../../MusicaPlayer/page";
 
 
 // ============================================================================
@@ -824,9 +824,7 @@ const Player: React.FC<PlayerProps> = ({
     } = useRadioStream({
         sessionId: radio._id,
         isOwner,
-        isPlaying,
-        isMicMuted,
-        micVolume
+        isPlaying
     });
 
     const [showVolumeControls, setShowVolumeControls] = useState(false);
@@ -836,38 +834,19 @@ const Player: React.FC<PlayerProps> = ({
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6">
                     <div className="flex items-center gap-4 w-full md:w-auto">
-                        {/* Botón ON AIR / OFF AIR - Solo para el dueño */}
-                        {isOwner && canTransmit ? (
-                            <button
-                                onClick={onToggleLive}
-                                disabled={isLoadingStream}
-                                className={`w-14 h-14 md:w-16 md:h-16 rounded-full backdrop-blur-sm transition-all flex items-center justify-center group flex-shrink-0 ${radio.isLive
-                                        ? 'bg-red-500/30 hover:bg-red-500/40 border-2 border-red-500 animate-pulse'
-                                        : 'bg-gray-500/20 hover:bg-gray-500/30 border-2 border-gray-500'
-                                    }`}
-                            >
-                                {isLoadingStream ? (
-                                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                ) : (
-                                    <Radio className={`w-6 h-6 md:w-8 md:h-8 ${radio.isLive ? 'text-red-300' : 'text-gray-400'
-                                        } group-hover:scale-110 transition-transform`} />
-                                )}
-                            </button>
-                        ) : (
-                            <button
-                                onClick={onPlayPause}
-                                disabled={!radio.isLive || isLoadingStream}
-                                className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all flex items-center justify-center group disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-                            >
-                                {isLoadingStream ? (
-                                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                ) : isPlaying ? (
-                                    <Pause className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:scale-110 transition-transform" />
-                                ) : (
-                                    <Play className="w-6 h-6 md:w-8 md:h-8 text-white ml-1 group-hover:scale-110 transition-transform" />
-                                )}
-                            </button>
-                        )}
+                        <button
+                            onClick={onPlayPause}
+                            disabled={!radio.isLive || isLoadingStream}
+                            className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all flex items-center justify-center group disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                        >
+                            {isLoadingStream ? (
+                                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : isPlaying ? (
+                                <Pause className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:scale-110 transition-transform" />
+                            ) : (
+                                <Play className="w-6 h-6 md:w-8 md:h-8 text-white ml-1 group-hover:scale-110 transition-transform" />
+                            )}
+                        </button>
 
                         {/* Botón de mutear micrófono (solo para el dueño cuando está transmitiendo) */}
                         {isOwner && canTransmit && radio.isLive && (
@@ -901,19 +880,19 @@ const Player: React.FC<PlayerProps> = ({
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                             {radio.isLive ? (
                                 <span className="bg-red-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1 animate-pulse">
-                                    <Radio size={12} />
-                                    ON AIR
+                                    <Mic size={12} />
+                                    EN VIVO
                                 </span>
                             ) : (
                                 <span className="bg-gray-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1">
                                     <Radio size={12} />
-                                    OFF AIR
+                                    OFF LINE
                                 </span>
                             )}
-                            {isOwner && radio.isLive && (
+                            {isOwner && isPlaying && radio.isLive && (
                                 <>
                                     <span className="bg-green-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1 animate-pulse">
-                                        <Zap size={12} />
+                                        <Mic size={12} />
                                         TRANSMITIENDO
                                     </span>
                                     {isMicMuted && (
@@ -974,12 +953,26 @@ const Player: React.FC<PlayerProps> = ({
                         )}
 
                         {isOwner && (
-                            <button
-                                onClick={onEdit}
-                                className="text-white/80 hover:text-white transition-colors p-2 bg-white/10 rounded-lg hover:bg-white/20"
-                            >
-                                <Settings size={20} />
-                            </button>
+                            <>
+                                <button
+                                    onClick={onEdit}
+                                    className="text-white/80 hover:text-white transition-colors p-2 bg-white/10 rounded-lg hover:bg-white/20"
+                                >
+                                    <Settings size={20} />
+                                </button>
+                                {canTransmit && (
+                                    <button
+                                        onClick={onToggleLive}
+                                        className={`px-3 py-1 rounded-lg text-sm font-semibold transition-colors ${radio.isLive
+                                                ? 'bg-red-500/20 text-red-300 border-2 border-red-500/50 animate-pulse'
+                                                : 'bg-green-500/20 text-green-300 border-2 border-green-500/50'
+                                            }`}
+                                    >
+                                        <Mic size={16} className="inline mr-1" />
+                                        {radio.isLive ? 'Detener' : 'Iniciar'}
+                                    </button>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>
@@ -1060,7 +1053,7 @@ const Player: React.FC<PlayerProps> = ({
 
                                 <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
                                     <p className="text-blue-300 text-xs">
-                                        💡 <strong>Tip:</strong> Baja la música al 30-40% cuando hables para que tu voz se escuche clara (efecto bajo cortina).
+                                        💡 <strong>Tip:</strong> Baja la música al 30-40% cuando hables para que tu voz se escuche clara (efecto- bajo cortina).
                                     </p>
                                 </div>
 
@@ -1091,13 +1084,13 @@ const Player: React.FC<PlayerProps> = ({
                     </div>
                 )}
 
-                {isOwner && radio.isLive && (
+                {isOwner && isPlaying && radio.isLive && (
                     <div className={`border rounded-lg p-3 flex items-center gap-2 ${isMicMuted ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/10 border-green-500/30'
                         }`}>
                         <div className={`w-2 h-2 rounded-full ${isMicMuted ? 'bg-red-500' : 'bg-green-500 animate-pulse'}`} />
                         <p className={`text-sm ${isMicMuted ? 'text-red-300' : 'text-green-300'}`}>
                             {isMicMuted
-                                ? '🔇 Tu micrófono está silenciado. Los oyentes no te escuchan (la música sigue sonando).'
+                                ? '🔇 Tu micrófono está silenciado. Los oyentes no te escuchan.'
                                 : `🎤 Tu micrófono está transmitiendo en vivo a ${listenerCount} oyente${listenerCount !== 1 ? 's' : ''}`
                             }
                         </p>
@@ -1118,8 +1111,8 @@ const Player: React.FC<PlayerProps> = ({
                         <Radio className="text-gray-400" size={18} />
                         <p className="text-gray-300 text-sm">
                             {isOwner && canTransmit
-                                ? 'Haz clic en el botón ON AIR para comenzar a transmitir en vivo'
-                                : 'Esta radio está OFF AIR en este momento'}
+                                ? 'Haz clic en "Iniciar" para comenzar a transmitir en vivo con tu micrófono'
+                                : 'Esta radio está fuera de línea en este momento'}
                         </p>
                     </div>
                 )}
@@ -1127,6 +1120,7 @@ const Player: React.FC<PlayerProps> = ({
         </div>
     );
 };
+
 // ============================================================================
 // COMPONENTE: ITEM DE PLAYLIST
 // ============================================================================
@@ -1224,8 +1218,8 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
     return (
         <div
             className={`group flex flex-col gap-2 p-3 md:p-4 rounded-lg transition-all ${isPlaying
-                ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-2 border-purple-500/50'
-                : 'bg-white/5 hover:bg-white/10 border-2 border-transparent'
+                    ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-2 border-purple-500/50'
+                    : 'bg-white/5 hover:bg-white/10 border-2 border-transparent'
                 }`}
         >
             {isOwner && (
@@ -1634,8 +1628,8 @@ const Chat: React.FC<ChatProps> = ({
                         <button
                             onClick={onToggleFreeze}
                             className={`px-2 md:px-3 py-1 rounded-lg text-xs md:text-sm transition-colors flex items-center gap-1 ${isFrozen
-                                ? 'bg-red-500/20 text-red-300 border border-red-500/50'
-                                : 'bg-green-500/20 text-green-300 border border-green-500/50'
+                                    ? 'bg-red-500/20 text-red-300 border border-red-500/50'
+                                    : 'bg-green-500/20 text-green-300 border border-green-500/50'
                                 }`}
                         >
                             {isFrozen ? (
@@ -1787,12 +1781,12 @@ const GuestControl: React.FC<GuestControlProps> = ({
                         </button>
                     ) : (
                         <div className="space-y-3">
-                            <div className="flex gap-2 flex-wrap">
+                            <div className="flex gap-2">
                                 <input
                                     type={showCode ? 'text' : 'password'}
                                     value={guestCode}
                                     readOnly
-                                    className="flex-1 bg-white/10 text-white rounded-lg px-4 py-2 font-mono text-sm min-w-[150px]"
+                                    className="flex-1 bg-white/10 text-white rounded-lg px-4 py-2 font-mono text-sm"
                                 />
                                 <button
                                     onClick={() => setShowCode(!showCode)}
@@ -1816,7 +1810,6 @@ const GuestControl: React.FC<GuestControlProps> = ({
             </div>
         </div>
     );
-
 };
 
 // ============================================================================
@@ -2478,6 +2471,41 @@ export default RadioSystem;
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // 'use client';
 // import React, { useState, useEffect, useRef, useContext } from 'react';
 // import { useParams } from 'next/navigation';
@@ -2487,7 +2515,7 @@ export default RadioSystem;
 // import { Cancion } from "../../components/Reproductor";
 // import Swal from 'sweetalert2';
 // import { useRadioStream } from '../../hooks/useRadioStream';
-// import  MusicaPlayer from "../../MusicaPlayer/page";
+// import MusicaPlayer from "../../MusicaPlayer/page";
 
 
 // // ============================================================================
@@ -3304,7 +3332,9 @@ export default RadioSystem;
 //     } = useRadioStream({
 //         sessionId: radio._id,
 //         isOwner,
-//         isPlaying
+//         isPlaying,
+//         isMicMuted,
+//         micVolume
 //     });
 
 //     const [showVolumeControls, setShowVolumeControls] = useState(false);
@@ -3314,19 +3344,38 @@ export default RadioSystem;
 //             <div className="flex flex-col gap-4">
 //                 <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6">
 //                     <div className="flex items-center gap-4 w-full md:w-auto">
-//                         <button
-//                             onClick={onPlayPause}
-//                             disabled={!radio.isLive || isLoadingStream}
-//                             className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all flex items-center justify-center group disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
-//                         >
-//                             {isLoadingStream ? (
-//                                 <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-//                             ) : isPlaying ? (
-//                                 <Pause className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:scale-110 transition-transform" />
-//                             ) : (
-//                                 <Play className="w-6 h-6 md:w-8 md:h-8 text-white ml-1 group-hover:scale-110 transition-transform" />
-//                             )}
-//                         </button>
+//                         {/* Botón ON AIR / OFF AIR - Solo para el dueño */}
+//                         {isOwner && canTransmit ? (
+//                             <button
+//                                 onClick={onToggleLive}
+//                                 disabled={isLoadingStream}
+//                                 className={`w-14 h-14 md:w-16 md:h-16 rounded-full backdrop-blur-sm transition-all flex items-center justify-center group flex-shrink-0 ${radio.isLive
+//                                         ? 'bg-red-500/30 hover:bg-red-500/40 border-2 border-red-500 animate-pulse'
+//                                         : 'bg-gray-500/20 hover:bg-gray-500/30 border-2 border-gray-500'
+//                                     }`}
+//                             >
+//                                 {isLoadingStream ? (
+//                                     <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+//                                 ) : (
+//                                     <Radio className={`w-6 h-6 md:w-8 md:h-8 ${radio.isLive ? 'text-red-300' : 'text-gray-400'
+//                                         } group-hover:scale-110 transition-transform`} />
+//                                 )}
+//                             </button>
+//                         ) : (
+//                             <button
+//                                 onClick={onPlayPause}
+//                                 disabled={!radio.isLive || isLoadingStream}
+//                                 className="w-14 h-14 md:w-16 md:h-16 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all flex items-center justify-center group disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+//                             >
+//                                 {isLoadingStream ? (
+//                                     <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+//                                 ) : isPlaying ? (
+//                                     <Pause className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:scale-110 transition-transform" />
+//                                 ) : (
+//                                     <Play className="w-6 h-6 md:w-8 md:h-8 text-white ml-1 group-hover:scale-110 transition-transform" />
+//                                 )}
+//                             </button>
+//                         )}
 
 //                         {/* Botón de mutear micrófono (solo para el dueño cuando está transmitiendo) */}
 //                         {isOwner && canTransmit && radio.isLive && (
@@ -3360,19 +3409,19 @@ export default RadioSystem;
 //                         <div className="flex flex-wrap items-center gap-2 mb-1">
 //                             {radio.isLive ? (
 //                                 <span className="bg-red-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1 animate-pulse">
-//                                     <Mic size={12} />
-//                                     EN VIVO
+//                                     <Radio size={12} />
+//                                     ON AIR
 //                                 </span>
 //                             ) : (
 //                                 <span className="bg-gray-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1">
 //                                     <Radio size={12} />
-//                                     OFF LINE
+//                                     OFF AIR
 //                                 </span>
 //                             )}
-//                             {isOwner && isPlaying && radio.isLive && (
+//                             {isOwner && radio.isLive && (
 //                                 <>
 //                                     <span className="bg-green-500 px-2 py-1 rounded text-xs font-bold text-white flex items-center gap-1 animate-pulse">
-//                                         <Mic size={12} />
+//                                         <Zap size={12} />
 //                                         TRANSMITIENDO
 //                                     </span>
 //                                     {isMicMuted && (
@@ -3433,26 +3482,12 @@ export default RadioSystem;
 //                         )}
 
 //                         {isOwner && (
-//                             <>
-//                                 <button
-//                                     onClick={onEdit}
-//                                     className="text-white/80 hover:text-white transition-colors p-2 bg-white/10 rounded-lg hover:bg-white/20"
-//                                 >
-//                                     <Settings size={20} />
-//                                 </button>
-//                                 {canTransmit && (
-//                                     <button
-//                                         onClick={onToggleLive}
-//                                         className={`px-3 py-1 rounded-lg text-sm font-semibold transition-colors ${radio.isLive
-//                                                 ? 'bg-red-500/20 text-red-300 border-2 border-red-500/50 animate-pulse'
-//                                                 : 'bg-green-500/20 text-green-300 border-2 border-green-500/50'
-//                                             }`}
-//                                     >
-//                                         <Mic size={16} className="inline mr-1" />
-//                                         {radio.isLive ? 'Detener' : 'Iniciar'}
-//                                     </button>
-//                                 )}
-//                             </>
+//                             <button
+//                                 onClick={onEdit}
+//                                 className="text-white/80 hover:text-white transition-colors p-2 bg-white/10 rounded-lg hover:bg-white/20"
+//                             >
+//                                 <Settings size={20} />
+//                             </button>
 //                         )}
 //                     </div>
 //                 </div>
@@ -3533,7 +3568,7 @@ export default RadioSystem;
 
 //                                 <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
 //                                     <p className="text-blue-300 text-xs">
-//                                         💡 <strong>Tip:</strong> Baja la música al 30-40% cuando hables para que tu voz se escuche clara (efecto- bajo cortina).
+//                                         💡 <strong>Tip:</strong> Baja la música al 30-40% cuando hables para que tu voz se escuche clara (efecto bajo cortina).
 //                                     </p>
 //                                 </div>
 
@@ -3564,13 +3599,13 @@ export default RadioSystem;
 //                     </div>
 //                 )}
 
-//                 {isOwner && isPlaying && radio.isLive && (
+//                 {isOwner && radio.isLive && (
 //                     <div className={`border rounded-lg p-3 flex items-center gap-2 ${isMicMuted ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/10 border-green-500/30'
 //                         }`}>
 //                         <div className={`w-2 h-2 rounded-full ${isMicMuted ? 'bg-red-500' : 'bg-green-500 animate-pulse'}`} />
 //                         <p className={`text-sm ${isMicMuted ? 'text-red-300' : 'text-green-300'}`}>
 //                             {isMicMuted
-//                                 ? '🔇 Tu micrófono está silenciado. Los oyentes no te escuchan.'
+//                                 ? '🔇 Tu micrófono está silenciado. Los oyentes no te escuchan (la música sigue sonando).'
 //                                 : `🎤 Tu micrófono está transmitiendo en vivo a ${listenerCount} oyente${listenerCount !== 1 ? 's' : ''}`
 //                             }
 //                         </p>
@@ -3591,8 +3626,8 @@ export default RadioSystem;
 //                         <Radio className="text-gray-400" size={18} />
 //                         <p className="text-gray-300 text-sm">
 //                             {isOwner && canTransmit
-//                                 ? 'Haz clic en "Iniciar" para comenzar a transmitir en vivo con tu micrófono'
-//                                 : 'Esta radio está fuera de línea en este momento'}
+//                                 ? 'Haz clic en el botón ON AIR para comenzar a transmitir en vivo'
+//                                 : 'Esta radio está OFF AIR en este momento'}
 //                         </p>
 //                     </div>
 //                 )}
@@ -3600,7 +3635,6 @@ export default RadioSystem;
 //         </div>
 //     );
 // };
-
 // // ============================================================================
 // // COMPONENTE: ITEM DE PLAYLIST
 // // ============================================================================
@@ -3698,8 +3732,8 @@ export default RadioSystem;
 //     return (
 //         <div
 //             className={`group flex flex-col gap-2 p-3 md:p-4 rounded-lg transition-all ${isPlaying
-//                     ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-2 border-purple-500/50'
-//                     : 'bg-white/5 hover:bg-white/10 border-2 border-transparent'
+//                 ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-2 border-purple-500/50'
+//                 : 'bg-white/5 hover:bg-white/10 border-2 border-transparent'
 //                 }`}
 //         >
 //             {isOwner && (
@@ -4108,8 +4142,8 @@ export default RadioSystem;
 //                         <button
 //                             onClick={onToggleFreeze}
 //                             className={`px-2 md:px-3 py-1 rounded-lg text-xs md:text-sm transition-colors flex items-center gap-1 ${isFrozen
-//                                     ? 'bg-red-500/20 text-red-300 border border-red-500/50'
-//                                     : 'bg-green-500/20 text-green-300 border border-green-500/50'
+//                                 ? 'bg-red-500/20 text-red-300 border border-red-500/50'
+//                                 : 'bg-green-500/20 text-green-300 border border-green-500/50'
 //                                 }`}
 //                         >
 //                             {isFrozen ? (
@@ -4239,7 +4273,7 @@ export default RadioSystem;
 //         }
 //     };
 
-//     return (
+//   return (
 //         <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-4 md:p-6">
 //             <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2 mb-4">
 //                 <Mic size={24} />
@@ -4261,12 +4295,12 @@ export default RadioSystem;
 //                         </button>
 //                     ) : (
 //                         <div className="space-y-3">
-//                             <div className="flex gap-2">
+//                             <div className="flex gap-2 flex-wrap">
 //                                 <input
 //                                     type={showCode ? 'text' : 'password'}
 //                                     value={guestCode}
 //                                     readOnly
-//                                     className="flex-1 bg-white/10 text-white rounded-lg px-4 py-2 font-mono text-sm"
+//                                     className="flex-1 bg-white/10 text-white rounded-lg px-4 py-2 font-mono text-sm min-w-[150px]"
 //                                 />
 //                                 <button
 //                                     onClick={() => setShowCode(!showCode)}
@@ -4940,10 +4974,6 @@ export default RadioSystem;
 // };
 
 // export default RadioSystem;
-
-
-
-
 
 
 
