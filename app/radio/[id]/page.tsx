@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useParams } from 'next/navigation';
-import { Play, Pause, Volume2, VolumeX, Users, Send, Trash2, GripVertical, Shield, Music, Share2, Settings, User, Check, X, Crown, Headphones, Mic, Upload, Edit2, Heart, SkipForward, Radio, Zap, Plus, MicOff, Ban } from 'lucide-react';
+import { Play,RadioTower, Pause, Volume2, VolumeX, Users, Send, Trash2, GripVertical, Shield, Music, Share2, Settings, User, Check, X, Crown, Headphones, Mic, Upload, Edit2, Heart, SkipForward, Radio, Zap, Plus, MicOff, Ban } from 'lucide-react';
 import { UserContext } from "../../context/UserContext";
 import { useReproductor } from '../../context/ReproductorContext';
 import { Cancion } from "../../components/Reproductor";
@@ -844,7 +844,9 @@ const Player: React.FC<PlayerProps> = ({
                             ) : isPlaying ? (
                                 <Pause className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:scale-110 transition-transform" />
                             ) : (
-                                <Play className="w-6 h-6 md:w-8 md:h-8 text-white ml-1 group-hover:scale-110 transition-transform" />
+                                 <div className="bg-red-500 rounded-full w-8 h-8 flex items-center justify-center md:w-10 md:h-10">
+                                <RadioTower size={24} className="text-white" />
+                            </div>
                             )}
                         </button>
 
@@ -1245,7 +1247,9 @@ const PlaylistItem: React.FC<PlaylistItemProps> = ({
                         {isPlaying ? (
                             <Pause className="w-5 h-5 text-white" />
                         ) : (
-                            <Play className="w-5 h-5 text-white ml-0.5" />
+                            <div className="bg-red-500 rounded-full w-8 h-8 flex items-center justify-center md:w-10 md:h-10">
+                                <RadioTower size={24} className="text-white" />
+                            </div>
                         )}
                     </button>
                 ) : (
@@ -2461,3 +2465,4 @@ const RadioSystem: React.FC = () => {
 };
 
 export default RadioSystem;
+
