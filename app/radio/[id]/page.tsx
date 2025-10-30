@@ -825,17 +825,18 @@ const Player: React.FC<PlayerProps> = ({
     isOwner,
     canTransmit
 }) => {
-    const {
-        isLoadingStream,
-        streamError,
-        listenerCount
-    } = useRadioStream({
-        sessionId: radio._id,
-        isOwner,
-        isPlaying,
-        isMicMuted,
-        isTransmitting // NUEVO: pasar el estado de transmisión
-    });
+    // ✅ CORRECTO
+const {
+    isLoadingStream,
+    streamError,
+    listenerCount
+} = useRadioStream({
+    sessionId: radio._id,
+    isOwner,
+    isPlaying,
+    isMicMuted,        // ✅ AGREGAR
+    isTransmitting     // ✅ AGREGAR
+});
 
     const [showVolumeControls, setShowVolumeControls] = useState(false);
 
@@ -5092,4 +5093,5 @@ export default RadioSystem;
 // };
 
 // export default RadioSystem;
+
 
