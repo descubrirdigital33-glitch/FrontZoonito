@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -9,7 +8,7 @@ interface UseRadioStreamProps {
   isOwner: boolean;
   isPlaying: boolean;
   isMicMuted: boolean;
-  isTransmitting: boolean; // Nuevo parámetro para controlar la transmisión
+  isTransmitting: boolean;
 }
 
 interface WindowWithAudioContext extends Window {
@@ -70,7 +69,7 @@ export const useRadioStream = ({
     };
   }, [sessionId]);
 
-  // 🎤 Efecto para controlar el mute del micrófono (CORREGIDO)
+  // 🎤 Efecto para controlar el mute del micrófono
   useEffect(() => {
     if (micGainNodeRef.current) {
       // Cuando isMicMuted es true, el volumen debe ser 0
@@ -86,23 +85,40 @@ export const useRadioStream = ({
     // Solo transmitir si es dueño Y está transmitiendo
     if (!isOwner || !isTransmitting) {
       // Limpiar todo
-      mediaStreamRef.current?.getTracks().forEach(track => track.stop());
-      mediaStreamRef.current = null;
-      processorRef.current?.disconnect();
-      processorRef.current = null;
-      mixerNodeRef.current?.disconnect();
-      mixerNodeRef.current = null;
-      micGainNodeRef.current?.disconnect();
-      micGainNodeRef.current = null;
-      micSourceRef.current?.disconnect();
-      micSourceRef.current = null;
-      trackSourceRef.current?.disconnect();
-      trackSourceRef.current = null;
-      
-      if (audioContextRef.current?.state !== 'closed') {
-        audioContextRef.current?.close();
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+        mediaStreamRef.current = null;
       }
-      audioContextRef.current = null;
+      
+      if (processorRef.current) {
+        processorRef.current.disconnect();
+        processorRef.current = null;
+      }
+      
+      if (mixerNodeRef.current) {
+        mixerNodeRef.current.disconnect();
+        mixerNodeRef.current = null;
+      }
+      
+      if (micGainNodeRef.current) {
+        micGainNodeRef.current.disconnect();
+        micGainNodeRef.current = null;
+      }
+      
+      if (micSourceRef.current) {
+        micSourceRef.current.disconnect();
+        micSourceRef.current = null;
+      }
+      
+      if (trackSourceRef.current) {
+        trackSourceRef.current.disconnect();
+        trackSourceRef.current = null;
+      }
+      
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
       
       console.log('🛑 Transmisión detenida completamente');
       return;
@@ -222,14 +238,26 @@ export const useRadioStream = ({
     startBroadcast();
 
     return () => {
-      mediaStreamRef.current?.getTracks().forEach(track => track.stop());
-      processorRef.current?.disconnect();
-      mixerNodeRef.current?.disconnect();
-      micGainNodeRef.current?.disconnect();
-      micSourceRef.current?.disconnect();
-      trackSourceRef.current?.disconnect();
-      if (audioContextRef.current?.state !== 'closed') {
-        audioContextRef.current?.close();
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (processorRef.current) {
+        processorRef.current.disconnect();
+      }
+      if (mixerNodeRef.current) {
+        mixerNodeRef.current.disconnect();
+      }
+      if (micGainNodeRef.current) {
+        micGainNodeRef.current.disconnect();
+      }
+      if (micSourceRef.current) {
+        micSourceRef.current.disconnect();
+      }
+      if (trackSourceRef.current) {
+        trackSourceRef.current.disconnect();
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
       }
     };
   }, [isOwner, isTransmitting, sessionId, isMicMuted]);
@@ -302,12 +330,18 @@ export const useRadioStream = ({
     return () => {
       socket.off('receive-live-audio', handleReceiveAudio);
       audioQueueRef.current = [];
-      audioContextRef.current?.close();
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
     };
   }, [isOwner, isPlaying, isTransmitting, sessionId]);
 
   return { isLoadingStream, streamError, listenerCount };
 };
+
+
+
+
 
 // 'use client';
 
@@ -580,6 +614,7 @@ export const useRadioStream = ({
 
 //   return { isLoadingStream, streamError, listenerCount };
 // };
+
 
 
 
