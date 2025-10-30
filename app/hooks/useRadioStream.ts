@@ -7,21 +7,13 @@
 //   sessionId: string;
 //   isOwner: boolean;
 //   isPlaying: boolean;
-//   isMicMuted?: boolean;  // ✅ Agregado
-//   micVolume?: number;     // ✅ Agregado
 // }
 
 // interface WindowWithAudioContext extends Window {
 //   webkitAudioContext?: typeof AudioContext;
 // }
 
-// export const useRadioStream = ({ 
-//   sessionId, 
-//   isOwner, 
-//   isPlaying,
-//   isMicMuted = false,
-//   micVolume = 1
-// }: UseRadioStreamProps) => {
+// export const useRadioStream = ({ sessionId, isOwner, isPlaying }: UseRadioStreamProps) => {
 //   const [isLoadingStream, setIsLoadingStream] = useState(false);
 //   const [streamError, setStreamError] = useState<string | null>(null);
 //   const [listenerCount, setListenerCount] = useState(0);
@@ -36,7 +28,6 @@
 //   // Nuevas referencias para el mixer
 //   const mixerNodeRef = useRef<GainNode | null>(null);
 //   const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-//   const micGainRef = useRef<GainNode | null>(null);  // ✅ Nuevo: para controlar volumen del mic
 //   const trackSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
 
 //   // 🔌 Conectar al backend
@@ -69,13 +60,6 @@
 //     };
 //   }, [sessionId]);
 
-//   // ✅ Efecto para actualizar el volumen del micrófono en tiempo real
-//   useEffect(() => {
-//     if (micGainRef.current) {
-//       micGainRef.current.gain.value = isMicMuted ? 0 : micVolume;
-//     }
-//   }, [isMicMuted, micVolume]);
-
 //   // 🎙️🎵 Propietario transmite micrófono + canciones
 //   useEffect(() => {
 //     if (!isOwner || !isPlaying) {
@@ -88,8 +72,6 @@
 //       mixerNodeRef.current = null;
 //       micSourceRef.current?.disconnect();
 //       micSourceRef.current = null;
-//       micGainRef.current?.disconnect();  // ✅ Limpiar gain del mic
-//       micGainRef.current = null;
 //       trackSourceRef.current?.disconnect();
 //       trackSourceRef.current = null;
 //       return;
@@ -126,15 +108,9 @@
 //         const micSource = audioContext.createMediaStreamSource(micStream);
 //         micSourceRef.current = micSource;
         
-//         // ✅ Crear un GainNode para el micrófono y aplicar el volumen
-//         const micGain = audioContext.createGain();
-//         micGain.gain.value = isMicMuted ? 0 : micVolume;
-//         micGainRef.current = micGain;
-        
-//         // Conectar micrófono -> micGain -> mixer
-//         micSource.connect(micGain);
-//         micGain.connect(mixer);
-//         console.log('🎤 Micrófono conectado al mixer con control de volumen');
+//         // Conectar micrófono al mixer
+//         micSource.connect(mixer);
+//         console.log('🎤 Micrófono conectado al mixer');
 
 //         // 4️⃣ Buscar y conectar el elemento <audio> de las canciones
 //         const connectTrackAudio = () => {
@@ -214,11 +190,10 @@
 //       processorRef.current?.disconnect();
 //       mixerNodeRef.current?.disconnect();
 //       micSourceRef.current?.disconnect();
-//       micGainRef.current?.disconnect();  // ✅ Limpiar gain del mic
 //       trackSourceRef.current?.disconnect();
 //       audioContextRef.current?.close();
 //     };
-//   }, [isOwner, isPlaying, sessionId]); // ✅ No incluir isMicMuted/micVolume aquí, se manejan en otro efecto
+//   }, [isOwner, isPlaying, sessionId]);
 
 //   // 🎧 Oyente recibe y reproduce audio
 //   useEffect(() => {
@@ -294,12 +269,6 @@
 
 //   return { isLoadingStream, streamError, listenerCount };
 // };
-      
-
-    
-  
- 
-
 
 
 
@@ -341,7 +310,7 @@ export const useRadioStream = ({ sessionId, isOwner, isPlaying }: UseRadioStream
 
   // 🔌 Conectar al backend
   useEffect(() => {
-    const socket: Socket = io("https://backendzoonito-production.up.railway.app", {
+    const socket: Socket = io("https://backendzoonito-production.up.railway.app/", {
       path: "/api/socket",
       transports: ["websocket", "polling"],
       reconnection: true,
@@ -578,6 +547,5 @@ export const useRadioStream = ({ sessionId, isOwner, isPlaying }: UseRadioStream
 
   return { isLoadingStream, streamError, listenerCount };
 };
-
 
 
