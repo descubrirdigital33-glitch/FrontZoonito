@@ -1,7 +1,6 @@
 'use client';
 
 import { Socket } from 'socket.io-client';
-
 interface SetupAudioMixerParams {
   audioContext: AudioContext;
   sessionId: string;
@@ -213,4 +212,5 @@ export const setMusicVolume = (trackGain: GainNode | null, volume: number) => {
     trackGain.gain.value = Math.max(0, Math.min(1, volume));
     console.log(`🎵 Volumen de la música ajustado: ${Math.round(volume * 100)}%`);
   }
+
 };
