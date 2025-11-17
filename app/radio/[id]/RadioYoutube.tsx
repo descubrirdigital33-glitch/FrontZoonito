@@ -36,6 +36,8 @@ declare global {
             fs: number;
             modestbranding: number;
             playsinline: number;
+            origin?: string;
+            enablejsapi?: number;
           };
           events: {
             onReady: (event: YouTubePlayerEvent) => void;
@@ -87,6 +89,7 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [playlist, setPlaylist] = useState<YouTubeTrack[]>([]);
+  const [apiReady, setApiReady] = useState(false);
   
   const playerInstanceRef = useRef<YouTubePlayer | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -95,24 +98,65 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
   const gainNodeRef = useRef<GainNode | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Cargar API de YouTube
+  // Cargar API de YouTube con retry y timeout
   useEffect(() => {
-    if (!window.YT) {
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    const loadYouTubeAPI = () => {
+      // Si ya está cargada, marcar como ready
+      if (window.YT && window.YT.Player) {
+        console.log('YouTube API already loaded');
+        setApiReady(true);
+        return;
+      }
+
+      // Verificar si ya existe el script
+      const existingScript = document.querySelector('script[src*="youtube.com/iframe_api"]');
+      if (existingScript) {
+        console.log('YouTube API script already exists, waiting for load...');
+        return;
+      }
+
       const tag = document.createElement('script');
       tag.src = 'https://www.youtube.com/iframe_api';
+      tag.async = true;
+      
+      tag.onerror = () => {
+        console.error('Failed to load YouTube API script');
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`Retrying YouTube API load (${retryCount}/${maxRetries})...`);
+          setTimeout(loadYouTubeAPI, 2000);
+        } else {
+          setError('No se pudo cargar la API de YouTube. Verifica tu conexión.');
+        }
+      };
+
       const firstScriptTag = document.getElementsByTagName('script')[0];
       if (firstScriptTag && firstScriptTag.parentNode) {
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
       }
 
+      // Callback global cuando YouTube API esté lista
       window.onYouTubeIframeAPIReady = () => {
-        console.log('YouTube API loaded');
+        console.log('YouTube API loaded successfully');
+        setApiReady(true);
       };
-    }
+    };
+
+    loadYouTubeAPI();
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+      }
+      if (playerInstanceRef.current) {
+        try {
+          playerInstanceRef.current.destroy();
+        } catch (e) {
+          console.error('Error destroying player:', e);
+        }
       }
     };
   }, []);
@@ -160,57 +204,120 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
     setIsLoading(true);
     setError('');
 
+    // Destruir player anterior si existe
     if (playerInstanceRef.current) {
-      playerInstanceRef.current.destroy();
+      try {
+        playerInstanceRef.current.destroy();
+      } catch (e) {
+        console.error('Error destroying previous player:', e);
+      }
       playerInstanceRef.current = null;
     }
 
+    // Verificar que la API esté disponible
     if (!window.YT || !window.YT.Player) {
-      setError('La API de YouTube aún no está cargada');
+      setError('La API de YouTube está cargando. Intenta de nuevo en unos segundos.');
       setIsLoading(false);
+      
+      // Esperar a que la API se cargue
+      setTimeout(() => {
+        if (window.YT && window.YT.Player) {
+          createPlayer(videoId);
+        }
+      }, 2000);
       return;
     }
 
-    playerInstanceRef.current = new window.YT.Player(`youtube-player-${radioId}`, {
-      height: '0',
-      width: '0',
-      videoId: videoId,
-      playerVars: {
-        autoplay: 1,
-        controls: 0,
-        disablekb: 1,
-        fs: 0,
-        modestbranding: 1,
-        playsinline: 1
-      },
-      events: {
-        onReady: (event: YouTubePlayerEvent) => {
-          console.log('YouTube player ready');
-          setIsLoading(false);
-          setIsPlaying(true);
-          
-          const duration = event.target.getDuration();
-          setDuration(duration);
-
-          setupAudioContext(event.target);
-          startTimeTracking();
-        },
-        onStateChange: (event: YouTubePlayerEvent) => {
-          if (event.data === window.YT.PlayerState.PLAYING) {
-            setIsPlaying(true);
-          } else if (event.data === window.YT.PlayerState.PAUSED) {
-            setIsPlaying(false);
-          } else if (event.data === window.YT.PlayerState.ENDED) {
-            handleTrackEnd();
-          }
-        },
-        onError: (event: YouTubePlayerEvent) => {
-          setError('Error al cargar el video de YouTube');
-          setIsLoading(false);
-          console.error('YouTube player error:', event);
-        }
+    try {
+      // Limpiar el contenedor antes de crear nuevo player
+      const container = document.getElementById(`youtube-player-${radioId}`);
+      if (container) {
+        container.innerHTML = '';
       }
-    });
+
+      playerInstanceRef.current = new window.YT.Player(`youtube-player-${radioId}`, {
+        height: '0',
+        width: '0',
+        videoId: videoId,
+        playerVars: {
+          autoplay: 1,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          origin: window.location.origin, // CRÍTICO para producción
+          enablejsapi: 1
+        },
+        events: {
+          onReady: (event: YouTubePlayerEvent) => {
+            console.log('YouTube player ready');
+            setIsLoading(false);
+            setIsPlaying(true);
+            
+            const duration = event.target.getDuration();
+            setDuration(duration);
+
+            setupAudioContext(event.target);
+            startTimeTracking();
+          },
+          onStateChange: (event: YouTubePlayerEvent) => {
+            console.log('YouTube player state:', event.data);
+            if (event.data === window.YT.PlayerState.PLAYING) {
+              setIsPlaying(true);
+              setError(''); // Limpiar errores previos
+            } else if (event.data === window.YT.PlayerState.PAUSED) {
+              setIsPlaying(false);
+            } else if (event.data === window.YT.PlayerState.ENDED) {
+              handleTrackEnd();
+            }
+          },
+          onError: (event: YouTubePlayerEvent) => {
+            console.error('YouTube player error:', event);
+            
+            // Mensajes de error más específicos
+            let errorMessage = 'Error al cargar el video de YouTube';
+            switch (event.data) {
+              case 2:
+                errorMessage = 'ID de video inválido';
+                break;
+              case 5:
+                errorMessage = 'Error de reproductor HTML5';
+                break;
+              case 100:
+                errorMessage = 'Video no encontrado o privado';
+                break;
+              case 101:
+              case 150:
+                errorMessage = 'El video no permite reproducción embebida';
+                break;
+              default:
+                errorMessage = `Error de YouTube (código: ${event.data})`;
+            }
+            
+            setError(errorMessage);
+            setIsLoading(false);
+            setIsPlaying(false);
+            
+            // Intentar siguiente si está en playlist
+            if (playlist.length > 1) {
+              setTimeout(() => {
+                const currentIndex = playlist.findIndex(t => t.id === currentTrack?.id);
+                const nextIndex = (currentIndex + 1) % playlist.length;
+                const nextTrack = playlist[nextIndex];
+                if (nextTrack && nextTrack.id !== videoId) {
+                  loadTrack(nextTrack.url);
+                }
+              }, 2000);
+            }
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error creating YouTube player:', error);
+      setError('Error al inicializar el reproductor de YouTube');
+      setIsLoading(false);
+    }
   };
 
   // Configurar Audio Context
@@ -293,6 +400,27 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
     
     if (!videoId) {
       setError('URL de YouTube inválida');
+      return;
+    }
+
+    // Verificar que la API esté lista
+    if (!window.YT || !window.YT.Player) {
+      setError('Esperando que la API de YouTube esté lista...');
+      setIsLoading(true);
+      
+      // Esperar hasta 5 segundos a que la API se cargue
+      let attempts = 0;
+      const checkAPI = setInterval(() => {
+        attempts++;
+        if (window.YT && window.YT.Player) {
+          clearInterval(checkAPI);
+          loadTrack(url); // Reintentar
+        } else if (attempts >= 10) {
+          clearInterval(checkAPI);
+          setError('No se pudo cargar la API de YouTube. Recarga la página.');
+          setIsLoading(false);
+        }
+      }, 500);
       return;
     }
 
@@ -408,6 +536,18 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
         </div>
       </div>
 
+      {/* Estado de API */}
+      {!apiReady && (
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
+          <div className="flex items-center gap-2">
+            <Loader size={16} className="text-blue-400 animate-spin" />
+            <p className="text-blue-300 text-xs">
+              Cargando API de YouTube...
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Advertencia de limitación */}
       <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mb-4">
         <div className="flex items-start gap-2">
@@ -416,9 +556,22 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
             <p className="text-yellow-300 text-xs font-semibold mb-1">
               Limitación Importante
             </p>
-            <p className="text-yellow-200 text-xs">
+            <p className="text-yellow-200 text-xs mb-2">
               La música de YouTube solo se escucha localmente en tu dispositivo. Los oyentes NO escuchan esta música por restricciones de YouTube. Para transmitir música real, usa el reproductor MP3.
             </p>
+            {error && error.includes('API') && (
+              <div className="bg-red-500/20 border border-red-500/40 rounded p-2 mt-2">
+                <p className="text-red-300 text-xs">
+                  🔧 <strong>Error de API:</strong> {error}
+                  <button 
+                    onClick={() => window.location.reload()} 
+                    className="ml-2 underline font-semibold hover:text-red-200"
+                  >
+                    Recargar página
+                  </button>
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -433,18 +586,18 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
             onKeyPress={(e) => e.key === 'Enter' && handleAddToPlaylist()}
             placeholder="Pega la URL de YouTube aquí..."
             className="flex-1 bg-white/10 text-white rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-red-500 border border-white/10"
-            disabled={!isLive || isLoading}
+            disabled={!isLive || isLoading || !apiReady}
           />
           <button
             onClick={handleAddToPlaylist}
-            disabled={!isLive || isLoading || !youtubeUrl.trim()}
+            disabled={!isLive || isLoading || !youtubeUrl.trim() || !apiReady}
             className="bg-red-600 hover:bg-red-700 disabled:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
           >
             <Plus size={18} />
             Agregar
           </button>
         </div>
-        {error && (
+        {error && !error.includes('API') && (
           <p className="text-red-400 text-sm mt-2">{error}</p>
         )}
       </div>
