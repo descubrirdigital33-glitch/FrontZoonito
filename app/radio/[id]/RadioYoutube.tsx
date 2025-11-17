@@ -36,8 +36,6 @@ declare global {
             fs: number;
             modestbranding: number;
             playsinline: number;
-            origin?: string;
-            enablejsapi?: number;
           };
           events: {
             onReady: (event: YouTubePlayerEvent) => void;
@@ -89,7 +87,6 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [playlist, setPlaylist] = useState<YouTubeTrack[]>([]);
-  const [apiReady, setApiReady] = useState(false);
   
   const playerInstanceRef = useRef<YouTubePlayer | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
@@ -98,65 +95,24 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
   const gainNodeRef = useRef<GainNode | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Cargar API de YouTube con retry y timeout
+  // Cargar API de YouTube
   useEffect(() => {
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    const loadYouTubeAPI = () => {
-      // Si ya está cargada, marcar como ready
-      if (window.YT && window.YT.Player) {
-        console.log('YouTube API already loaded');
-        setApiReady(true);
-        return;
-      }
-
-      // Verificar si ya existe el script
-      const existingScript = document.querySelector('script[src*="youtube.com/iframe_api"]');
-      if (existingScript) {
-        console.log('YouTube API script already exists, waiting for load...');
-        return;
-      }
-
+    if (!window.YT) {
       const tag = document.createElement('script');
       tag.src = 'https://www.youtube.com/iframe_api';
-      tag.async = true;
-      
-      tag.onerror = () => {
-        console.error('Failed to load YouTube API script');
-        if (retryCount < maxRetries) {
-          retryCount++;
-          console.log(`Retrying YouTube API load (${retryCount}/${maxRetries})...`);
-          setTimeout(loadYouTubeAPI, 2000);
-        } else {
-          setError('No se pudo cargar la API de YouTube. Verifica tu conexión.');
-        }
-      };
-
       const firstScriptTag = document.getElementsByTagName('script')[0];
       if (firstScriptTag && firstScriptTag.parentNode) {
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
       }
 
-      // Callback global cuando YouTube API esté lista
       window.onYouTubeIframeAPIReady = () => {
-        console.log('YouTube API loaded successfully');
-        setApiReady(true);
+        console.log('YouTube API loaded');
       };
-    };
-
-    loadYouTubeAPI();
+    }
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
-      }
-      if (playerInstanceRef.current) {
-        try {
-          playerInstanceRef.current.destroy();
-        } catch (e) {
-          console.error('Error destroying player:', e);
-        }
       }
     };
   }, []);
@@ -185,13 +141,43 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
     return null;
   };
 
-  // Obtener información del video
-  const getVideoInfo = async (videoId: string): Promise<{ title: string; duration: number; thumbnail: string } | null> => {
+  // Verificar si el video permite reproducción embebida
+  const checkVideoEmbeddable = async (videoId: string): Promise<boolean> => {
     try {
+      const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+      return response.ok;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  // Obtener información del video
+  const getVideoInfo = async (videoId: string): Promise<{ title: string; duration: number; thumbnail: string; embeddable: boolean } | null> => {
+    try {
+      const embeddable = await checkVideoEmbeddable(videoId);
+      
+      if (embeddable) {
+        try {
+          const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+          if (response.ok) {
+            const data = await response.json();
+            return {
+              title: data.title || 'YouTube Video',
+              duration: 0,
+              thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+              embeddable: true
+            };
+          }
+        } catch (e) {
+          console.error('Error fetching oEmbed:', e);
+        }
+      }
+      
       return {
         title: 'YouTube Video',
         duration: 0,
-        thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+        thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+        embeddable
       };
     } catch (error) {
       console.error('Error getting video info:', error);
@@ -204,120 +190,72 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
     setIsLoading(true);
     setError('');
 
-    // Destruir player anterior si existe
     if (playerInstanceRef.current) {
-      try {
-        playerInstanceRef.current.destroy();
-      } catch (e) {
-        console.error('Error destroying previous player:', e);
-      }
+      playerInstanceRef.current.destroy();
       playerInstanceRef.current = null;
     }
 
-    // Verificar que la API esté disponible
     if (!window.YT || !window.YT.Player) {
-      setError('La API de YouTube está cargando. Intenta de nuevo en unos segundos.');
+      setError('La API de YouTube aún no está cargada');
       setIsLoading(false);
-      
-      // Esperar a que la API se cargue
-      setTimeout(() => {
-        if (window.YT && window.YT.Player) {
-          createPlayer(videoId);
-        }
-      }, 2000);
       return;
     }
 
-    try {
-      // Limpiar el contenedor antes de crear nuevo player
-      const container = document.getElementById(`youtube-player-${radioId}`);
-      if (container) {
-        container.innerHTML = '';
-      }
+    playerInstanceRef.current = new window.YT.Player(`youtube-player-${radioId}`, {
+      height: '0',
+      width: '0',
+      videoId: videoId,
+      playerVars: {
+        autoplay: 1,
+        controls: 0,
+        disablekb: 1,
+        fs: 0,
+        modestbranding: 1,
+        playsinline: 1
+      },
+      events: {
+        onReady: (event: YouTubePlayerEvent) => {
+          console.log('YouTube player ready');
+          setIsLoading(false);
+          setIsPlaying(true);
+          
+          const duration = event.target.getDuration();
+          setDuration(duration);
 
-      playerInstanceRef.current = new window.YT.Player(`youtube-player-${radioId}`, {
-        height: '0',
-        width: '0',
-        videoId: videoId,
-        playerVars: {
-          autoplay: 1,
-          controls: 0,
-          disablekb: 1,
-          fs: 0,
-          modestbranding: 1,
-          playsinline: 1,
-          origin: window.location.origin, // CRÍTICO para producción
-          enablejsapi: 1
+          setupAudioContext(event.target);
+          startTimeTracking();
         },
-        events: {
-          onReady: (event: YouTubePlayerEvent) => {
-            console.log('YouTube player ready');
-            setIsLoading(false);
+        onStateChange: (event: YouTubePlayerEvent) => {
+          if (event.data === window.YT.PlayerState.PLAYING) {
             setIsPlaying(true);
-            
-            const duration = event.target.getDuration();
-            setDuration(duration);
-
-            setupAudioContext(event.target);
-            startTimeTracking();
-          },
-          onStateChange: (event: YouTubePlayerEvent) => {
-            console.log('YouTube player state:', event.data);
-            if (event.data === window.YT.PlayerState.PLAYING) {
-              setIsPlaying(true);
-              setError(''); // Limpiar errores previos
-            } else if (event.data === window.YT.PlayerState.PAUSED) {
-              setIsPlaying(false);
-            } else if (event.data === window.YT.PlayerState.ENDED) {
-              handleTrackEnd();
-            }
-          },
-          onError: (event: YouTubePlayerEvent) => {
-            console.error('YouTube player error:', event);
-            
-            // Mensajes de error más específicos
-            let errorMessage = 'Error al cargar el video de YouTube';
-            switch (event.data) {
-              case 2:
-                errorMessage = 'ID de video inválido';
-                break;
-              case 5:
-                errorMessage = 'Error de reproductor HTML5';
-                break;
-              case 100:
-                errorMessage = 'Video no encontrado o privado';
-                break;
-              case 101:
-              case 150:
-                errorMessage = 'El video no permite reproducción embebida';
-                break;
-              default:
-                errorMessage = `Error de YouTube (código: ${event.data})`;
-            }
-            
-            setError(errorMessage);
-            setIsLoading(false);
+          } else if (event.data === window.YT.PlayerState.PAUSED) {
             setIsPlaying(false);
-            
-            // Intentar siguiente si está en playlist
-            if (playlist.length > 1) {
-              setTimeout(() => {
-                const currentIndex = playlist.findIndex(t => t.id === currentTrack?.id);
-                const nextIndex = (currentIndex + 1) % playlist.length;
-                const nextTrack = playlist[nextIndex];
-                if (nextTrack && nextTrack.id !== videoId) {
-                  loadTrack(nextTrack.url);
-                }
-              }, 2000);
-            }
+          } else if (event.data === window.YT.PlayerState.ENDED) {
+            handleTrackEnd();
+          }
+        },
+        onError: (event: YouTubePlayerEvent) => {
+          console.error('YouTube player error:', event);
+          
+          const errorMessages: { [key: number]: string } = {
+            2: 'Solicitud inválida - El video ID es incorrecto',
+            5: 'Error del reproductor HTML5',
+            100: 'Video no encontrado o fue eliminado',
+            101: '🚫 Este video NO permite reproducción embebida',
+            150: '🚫 Este video NO permite reproducción embebida'
+          };
+          
+          const errorMessage = errorMessages[event.data] || 'Error al cargar el video de YouTube';
+          setError(errorMessage);
+          setIsLoading(false);
+          setIsPlaying(false);
+          
+          if (event.data === 101 || event.data === 150) {
+            setError('🚫 Este video tiene reproducción embebida deshabilitada. El propietario del video no permite reproducirlo en otros sitios. Intenta con otro video.');
           }
         }
-      });
-    } catch (error) {
-      console.error('Error creating YouTube player:', error);
-      setError('Error al inicializar el reproductor de YouTube');
-      setIsLoading(false);
-    }
+      }
+    });
   };
 
   // Configurar Audio Context
@@ -340,7 +278,7 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
         }
       }
 
-      console.log('Audio context configured (YouTube audio capture requires backend)');
+      console.log('Audio context configured');
       
     } catch (error) {
       console.error('Error setting up audio context:', error);
@@ -366,7 +304,6 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
     setIsPlaying(false);
     setCurrentTime(0);
     
-    // Reproducir siguiente en la playlist si existe
     if (playlist.length > 0) {
       const currentIndex = playlist.findIndex(t => t.id === currentTrack?.id);
       const nextIndex = (currentIndex + 1) % playlist.length;
@@ -403,32 +340,15 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
       return;
     }
 
-    // Verificar que la API esté lista
-    if (!window.YT || !window.YT.Player) {
-      setError('Esperando que la API de YouTube esté lista...');
-      setIsLoading(true);
-      
-      // Esperar hasta 5 segundos a que la API se cargue
-      let attempts = 0;
-      const checkAPI = setInterval(() => {
-        attempts++;
-        if (window.YT && window.YT.Player) {
-          clearInterval(checkAPI);
-          loadTrack(url); // Reintentar
-        } else if (attempts >= 10) {
-          clearInterval(checkAPI);
-          setError('No se pudo cargar la API de YouTube. Recarga la página.');
-          setIsLoading(false);
-        }
-      }, 500);
-      return;
-    }
-
     const videoInfo = await getVideoInfo(videoId);
     
     if (!videoInfo) {
       setError('No se pudo obtener información del video');
       return;
+    }
+
+    if (!videoInfo.embeddable) {
+      setError('⚠️ Este video podría no permitir reproducción embebida. Si no se reproduce, intenta con otro video.');
     }
 
     const track: YouTubeTrack = {
@@ -478,7 +398,6 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
     setYoutubeUrl('');
     setError('');
 
-    // Si no hay track actual, reproducir este
     if (!currentTrack) {
       loadTrack(track.url);
     }
@@ -525,80 +444,59 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
   }
 
   return (
-    <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-4 md:p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
-          <Youtube size={24} className="text-white" />
+    <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl p-3 sm:p-4 md:p-6 w-full max-w-full overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-3 sm:mb-4">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <Youtube size={20} className="text-white sm:w-6 sm:h-6" />
         </div>
-        <div>
-          <h2 className="text-xl font-bold text-white">YouTube Music</h2>
-          <p className="text-white/60 text-sm">Reproduce música desde YouTube</p>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg sm:text-xl font-bold text-white truncate">YouTube Music</h2>
+          <p className="text-white/60 text-xs sm:text-sm truncate">Reproduce música desde YouTube</p>
         </div>
       </div>
 
-      {/* Estado de API */}
-      {!apiReady && (
-        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
-          <div className="flex items-center gap-2">
-            <Loader size={16} className="text-blue-400 animate-spin" />
-            <p className="text-blue-300 text-xs">
-              Cargando API de YouTube...
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Advertencia de limitación */}
-      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mb-4">
+      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-2 sm:p-3 mb-3 sm:mb-4">
         <div className="flex items-start gap-2">
-          <div className="text-yellow-400 flex-shrink-0 mt-0.5">⚠️</div>
+          <div className="text-yellow-400 flex-shrink-0 mt-0.5 text-sm sm:text-base">⚠️</div>
           <div className="flex-1 min-w-0">
             <p className="text-yellow-300 text-xs font-semibold mb-1">
-              Limitación Importante
+              Limitaciones Importantes
             </p>
-            <p className="text-yellow-200 text-xs mb-2">
-              La música de YouTube solo se escucha localmente en tu dispositivo. Los oyentes NO escuchan esta música por restricciones de YouTube. Para transmitir música real, usa el reproductor MP3.
-            </p>
-            {error && error.includes('API') && (
-              <div className="bg-red-500/20 border border-red-500/40 rounded p-2 mt-2">
-                <p className="text-red-300 text-xs">
-                  🔧 <strong>Error de API:</strong> {error}
-                  <button 
-                    onClick={() => window.location.reload()} 
-                    className="ml-2 underline font-semibold hover:text-red-200"
-                  >
-                    Recargar página
-                  </button>
-                </p>
-              </div>
-            )}
+            <ul className="text-yellow-200 text-[10px] sm:text-xs space-y-0.5 sm:space-y-1">
+              <li>• La música solo se escucha localmente en tu dispositivo</li>
+              <li>• Los oyentes NO escuchan esta música</li>
+              <li>• <strong>Algunos videos bloquean reproducción embebida</strong></li>
+              <li>• Para transmitir música real, usa el reproductor MP3</li>
+            </ul>
           </div>
         </div>
       </div>
 
       {/* Input para URL */}
-      <div className="mb-4">
-        <div className="flex gap-2">
+      <div className="mb-3 sm:mb-4">
+        <div className="flex flex-col sm:flex-row gap-2">
           <input
             type="text"
             value={youtubeUrl}
             onChange={(e) => setYoutubeUrl(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleAddToPlaylist()}
-            placeholder="Pega la URL de YouTube aquí..."
-            className="flex-1 bg-white/10 text-white rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-red-500 border border-white/10"
-            disabled={!isLive || isLoading || !apiReady}
+            placeholder="Pega la URL de YouTube..."
+            className="flex-1 bg-white/10 text-white rounded-lg px-3 sm:px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-red-500 border border-white/10 w-full"
+            disabled={!isLive || isLoading}
           />
           <button
             onClick={handleAddToPlaylist}
-            disabled={!isLive || isLoading || !youtubeUrl.trim() || !apiReady}
-            className="bg-red-600 hover:bg-red-700 disabled:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+            disabled={!isLive || isLoading || !youtubeUrl.trim()}
+            className="bg-red-600 hover:bg-red-700 disabled:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm w-full sm:w-auto"
           >
-            <Plus size={18} />
-            Agregar
+            <Plus size={16} />
+            <span className="whitespace-nowrap">Agregar</span>
           </button>
         </div>
-        {error && !error.includes('API') && (
-          <p className="text-red-400 text-sm mt-2">{error}</p>
+        {error && (
+          <p className="text-red-400 text-xs sm:text-sm mt-2 break-words">{error}</p>
         )}
       </div>
 
@@ -609,45 +507,45 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
 
       {/* Reproductor actual */}
       {currentTrack && (
-        <div className="bg-white/5 rounded-lg p-4 mb-4">
-          <div className="flex items-center gap-4 mb-3">
+        <div className="bg-white/5 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4">
+          <div className="flex items-center gap-2 sm:gap-4 mb-3">
             <img 
               src={currentTrack.thumbnail} 
               alt={currentTrack.title}
-              className="w-16 h-16 rounded-lg object-cover"
+              className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover flex-shrink-0"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.src = 'https://via.placeholder.com/64?text=YT';
               }}
             />
             <div className="flex-1 min-w-0">
-              <h3 className="text-white font-semibold truncate">{currentTrack.title}</h3>
-              <p className="text-white/60 text-sm">
+              <h3 className="text-white font-semibold text-sm sm:text-base truncate">{currentTrack.title}</h3>
+              <p className="text-white/60 text-xs sm:text-sm">
                 {formatTime(currentTime)} / {duration > 0 ? formatTime(duration) : '--:--'}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
               {isLoading ? (
-                <Loader size={24} className="text-white animate-spin" />
+                <Loader size={20} className="text-white animate-spin sm:w-6 sm:h-6" />
               ) : (
                 <>
                   <button
                     onClick={togglePlayPause}
-                    className="w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-colors"
+                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-colors"
                   >
                     {isPlaying ? (
-                      <Pause size={20} className="text-white" />
+                      <Pause size={18} className="text-white sm:w-5 sm:h-5" />
                     ) : (
-                      <Play size={20} className="text-white ml-1" />
+                      <Play size={18} className="text-white ml-0.5 sm:w-5 sm:h-5" />
                     )}
                   </button>
                   {playlist.length > 1 && (
                     <button
                       onClick={skipToNext}
-                      className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
                       title="Siguiente"
                     >
-                      <SkipForward size={18} className="text-white" />
+                      <SkipForward size={16} className="text-white sm:w-[18px] sm:h-[18px]" />
                     </button>
                   )}
                 </>
@@ -665,11 +563,13 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
 
           {/* Control de volumen */}
           <div className="flex items-center gap-2">
-            {musicVolume === 0 ? (
-              <VolumeX size={18} className="text-white/60" />
-            ) : (
-              <Volume2 size={18} className="text-white/60" />
-            )}
+            <div className="flex-shrink-0">
+              {musicVolume === 0 ? (
+                <VolumeX size={16} className="text-white/60 sm:w-[18px] sm:h-[18px]" />
+              ) : (
+                <Volume2 size={16} className="text-white/60 sm:w-[18px] sm:h-[18px]" />
+              )}
+            </div>
             <input
               type="range"
               min="0"
@@ -678,51 +578,55 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
               value={musicVolume}
               onChange={handleVolumeChange}
               className="flex-1 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
+              style={{
+                WebkitAppearance: 'none',
+                background: `linear-gradient(to right, rgb(220, 38, 38) 0%, rgb(220, 38, 38) ${musicVolume * 100}%, rgba(255,255,255,0.1) ${musicVolume * 100}%, rgba(255,255,255,0.1) 100%)`
+              }}
             />
-            <span className="text-white/60 text-sm w-12 text-right">
+            <span className="text-white/60 text-xs sm:text-sm w-8 sm:w-12 text-right flex-shrink-0">
               {Math.round(musicVolume * 100)}%
             </span>
           </div>
         </div>
       )}
 
-      {/* Playlist con clicks para cambiar */}
+      {/* Playlist */}
       {playlist.length > 0 && (
         <div>
-          <h3 className="text-white font-semibold mb-2 flex items-center gap-2">
-            <Youtube size={18} />
-            Cola de reproducción ({playlist.length})
+          <h3 className="text-white font-semibold text-sm sm:text-base mb-2 flex items-center gap-2">
+            <Youtube size={16} className="sm:w-[18px] sm:h-[18px]" />
+            <span>Cola ({playlist.length})</span>
           </h3>
-          <div className="space-y-2 max-h-64 overflow-y-auto">
+          <div className="space-y-2 max-h-48 sm:max-h-64 overflow-y-auto">
             {playlist.map((track, index) => (
               <div
                 key={track.id}
                 onClick={() => playTrackFromPlaylist(track)}
-                className={`bg-white/5 rounded-lg p-3 flex items-center gap-3 group cursor-pointer hover:bg-white/10 transition-all ${
+                className={`bg-white/5 rounded-lg p-2 sm:p-3 flex items-center gap-2 sm:gap-3 group cursor-pointer hover:bg-white/10 transition-all ${
                   currentTrack?.id === track.id ? 'ring-2 ring-red-500 bg-white/10' : ''
                 }`}
               >
-                <div className="text-white/60 text-sm font-mono w-6 flex-shrink-0">
+                <div className="text-white/60 text-xs sm:text-sm font-mono w-4 sm:w-6 flex-shrink-0 text-center">
                   {index + 1}
                 </div>
                 <img 
                   src={track.thumbnail} 
                   alt={track.title}
-                  className="w-12 h-12 rounded object-cover"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded object-cover flex-shrink-0"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.src = 'https://via.placeholder.com/48?text=YT';
                   }}
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm truncate">{track.title}</p>
+                  <p className="text-white text-xs sm:text-sm truncate">{track.title}</p>
                   {currentTrack?.id === track.id ? (
-                    <span className="text-red-400 text-xs flex items-center gap-1">
-                      <span className="inline-block w-2 h-2 bg-red-400 rounded-full animate-pulse"></span>
+                    <span className="text-red-400 text-[10px] sm:text-xs flex items-center gap-1">
+                      <span className="inline-block w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse"></span>
                       Reproduciendo
                     </span>
                   ) : (
-                    <span className="text-white/40 text-xs">Click para reproducir</span>
+                    <span className="text-white/40 text-[10px] sm:text-xs">Click para reproducir</span>
                   )}
                 </div>
                 <button
@@ -730,9 +634,9 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
                     e.stopPropagation();
                     removeFromPlaylist(track.id);
                   }}
-                  className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-all"
+                  className="opacity-60 sm:opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-all flex-shrink-0 p-1"
                 >
-                  <X size={18} />
+                  <X size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </button>
               </div>
             ))}
@@ -742,19 +646,19 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
 
       {/* Info offline */}
       {!isLive && (
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mt-4">
-          <p className="text-yellow-300 text-sm">
-            ⚠️ Activa la transmisión en vivo para poder reproducir música de YouTube
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-2 sm:p-3 mt-3 sm:mt-4">
+          <p className="text-yellow-300 text-xs sm:text-sm">
+            ⚠️ Activa la transmisión en vivo para poder reproducir música
           </p>
         </div>
       )}
 
       {/* Estado vacío */}
       {playlist.length === 0 && !currentTrack && (
-        <div className="text-center py-8 text-white/60">
-          <Youtube size={48} className="mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No hay videos en la cola</p>
-          <p className="text-xs mt-1">Agrega una URL de YouTube para comenzar</p>
+        <div className="text-center py-6 sm:py-8 text-white/60">
+          <Youtube size={40} className="mx-auto mb-2 opacity-50 sm:w-12 sm:h-12" />
+          <p className="text-xs sm:text-sm">No hay videos en la cola</p>
+          <p className="text-[10px] sm:text-xs mt-1">Agrega una URL de YouTube para comenzar</p>
         </div>
       )}
     </div>
