@@ -207,7 +207,6 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ user, isOwner, radioId, onC
                         )}
                     </div>
                 </div>
-
                 <div className="flex gap-3 mt-6">
                     <button
                         onClick={onClose}
