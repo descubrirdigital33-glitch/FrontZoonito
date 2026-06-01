@@ -15,7 +15,6 @@ export interface Track {
     isInMemory?: boolean;
     file?: File;
 }
-
 export interface User {
     _id: string;
     email: string;
