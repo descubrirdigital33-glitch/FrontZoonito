@@ -62,10 +62,10 @@ export interface TrackMetadata {
 }
 
 // ============================================================================
-// API CLIENT
+// API CLIENT const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-zoonito-6x8h.vercel.app/api';
 // ============================================================================
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-zoonito-6x8h.vercel.app/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backendzoonito.onrender.com/api';
 
 export const api = {
     async getRadio(radioId: string): Promise<RadioStation | null> {
