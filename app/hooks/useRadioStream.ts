@@ -45,7 +45,7 @@ export const useRadioStream = ({
 
   // 🔌 Conexión al backend
   useEffect(() => {
-    const socket: Socket = io("https://backendzoonito.onrender.com/", {
+    const socket: Socket = io("https://backendzoonito.onrender.com", {
       path: "/api/socket",
       transports: ["websocket", "polling"],
       reconnection: true,
