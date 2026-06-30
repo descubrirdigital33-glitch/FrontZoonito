@@ -366,6 +366,10 @@ interface PlayerProps {
     canTransmit: boolean;
     user?: UserType;
     owner?: UserType;
+    // Vienen del hook useRadioStream, llamado UNA sola vez en RadioSystem
+    isLoadingStream: boolean;
+    streamError: string | null;
+    listenerCount: number;
 }
 
 // ── VU Meter animado (solo modo oyente) ─────────────────────
@@ -481,17 +485,14 @@ const Player: React.FC<PlayerProps> = ({
     radio, currentTrack, isPlaying, isMicMuted, micVolume, musicVolume,
     onPlayPause, onToggleMic, onMicVolumeChange, onMusicVolumeChange,
     onShare, onEditRadio, onToggleLike, onToggleLive, onUploadLogo,
-    hasLiked, isOwner, canTransmit, user, owner
+    hasLiked, isOwner, canTransmit, user, owner,
+    isLoadingStream, streamError, listenerCount
 }) => {
-    const { isLoadingStream, streamError, listenerCount } = useRadioStream({
-        sessionId: radio._id, isOwner, isPlaying, micVolume, musicVolume, isMicMuted
-    });
-
     const [showVolumeControls, setShowVolumeControls] = useState(false);
     const displayLogo = radio.logo || owner?.avatar || '/assets/zoonito.jpg';
 
-    // Texto del ticker para el modo oyente: usa el track que viene en vivo desde el backend,
-    // no solo lo que viene de tracks subidos manualmente
+    // Texto del ticker para el modo oyente: usa el track que viene en vivo desde el backend
+    // (vía socket "now-playing"), no solo lo que viene de tracks subidos manualmente
     const tickerText = currentTrack
         ? `${currentTrack.title}  —  ${currentTrack.artist}`
         : radio.isLive
@@ -771,7 +772,7 @@ const Player: React.FC<PlayerProps> = ({
                     <SignalBars strength={radio.isLive ? 5 : 1} />
                 </div>
 
-                {/* Ticker con canción actual — toma currentTrack en vivo, no solo backend */}
+                {/* Ticker con canción actual — toma currentTrack en vivo (now-playing por socket) */}
                 <Ticker text={tickerText} paused={!isPlaying} />
 
                 {/* Barra de progreso segmentada — estado de reproducción en vivo */}
@@ -1108,6 +1109,38 @@ const RadioSystem: React.FC = () => {
         handleUpdateProfile, displayRadio, isOwner, canTransmit, canModerate,
     } = useRadioSystem({ radioId, user, getToken, loginUser });
 
+    // ── Stream / socket — UNA sola instancia para toda la página ────────────
+    // (antes se llamaba adentro de Player, lo que impedía conectar el
+    // "now playing" del dueño con MusicaPlayer, y abría conexiones redundantes)
+    const {
+        isLoadingStream, streamError, listenerCount, nowPlaying, emitNowPlaying
+    } = useRadioStream({
+        sessionId: radioId,
+        isOwner,
+        isPlaying,
+        micVolume,
+        musicVolume,
+        isMicMuted
+    });
+
+    // NUEVO: cuando el OYENTE recibe "now playing" por socket, actualiza su
+    // currentTrack para que el Player (modo estéreo) muestre la canción que
+    // está sonando en vivo, en tiempo real.
+    useEffect(() => {
+        if (isOwner) return; // el dueño ya maneja su propio currentTrack localmente
+        if (!nowPlaying) return;
+
+        setCurrentTrack(nowPlaying.id ? {
+            _id: nowPlaying.id,
+            radioId,
+            title: nowPlaying.titulo || '',
+            artist: nowPlaying.artista || '',
+            url: '',
+            duration: nowPlaying.duration || 0,
+            order: 0
+        } : null);
+    }, [nowPlaying, isOwner, radioId, setCurrentTrack]);
+
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [showRadioSettingsModal, setShowRadioSettingsModal] = useState(false);
@@ -1260,6 +1293,9 @@ const RadioSystem: React.FC = () => {
                             canTransmit={canTransmit}
                             user={user || undefined}
                             owner={displayRadio.owner || user || undefined}
+                            isLoadingStream={isLoadingStream}
+                            streamError={streamError}
+                            listenerCount={listenerCount}
                         />
 
                         <div className="rs-grid-2">
@@ -1279,6 +1315,8 @@ const RadioSystem: React.FC = () => {
                                                 order: 0
                                             } : null);
                                         }}
+                                        // NUEVO: emite por socket cada cambio de canción / play / pause
+                                        onNowPlayingChange={emitNowPlaying}
                                         onUploadToBackend={async (file, metadata) => {
                                             const token = getToken();
                                             if (!token) throw new Error('No token');
