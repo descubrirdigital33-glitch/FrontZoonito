@@ -31,12 +31,24 @@ interface CancionBackend {
   order: number;
 }
 
+// Lo que se envía en tiempo real (ej: por socket) cada vez que cambia algo relevante
+interface NowPlayingData {
+  id: string | null;
+  titulo: string | null;
+  artista: string | null;
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+}
+
 interface MusicaPlayerProps {
   radioId: string;
   cancionesBackend?: CancionBackend[];
   onCancionChange?: (cancion: Cancion | null) => void;
   onUploadToBackend?: (file: File, metadata: { title: string; artist: string }) => Promise<{ url: string }>;
   onDeleteFromBackend?: (trackId: string) => Promise<void>;
+  // NUEVO: se dispara con info de "qué se está escuchando ahora" para que el padre lo mande por socket/backend
+  onNowPlayingChange?: (data: NowPlayingData) => void;
   canEdit: boolean;
   isOwner: boolean;
   isLive: boolean;
@@ -53,6 +65,7 @@ const MusicaPlayer: React.FC<MusicaPlayerProps> = ({
   onCancionChange,
   onUploadToBackend,
   onDeleteFromBackend,
+  onNowPlayingChange,
   canEdit,
   isOwner,
   isLive,
@@ -79,6 +92,10 @@ const MusicaPlayer: React.FC<MusicaPlayerProps> = ({
   const volumePanelRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
+  // Refs para throttlear el envío de "now playing" (no queremos emitir en cada timeupdate)
+  const lastEmitRef = useRef<number>(0);
+  const lastEmitKeyRef = useRef<string>('');
+
   // ── Combinar canciones ──────────────────────────────────────────────────────
   const todasLasCanciones: Cancion[] = [
     ...cancionesBackend.map((track) => ({
@@ -97,11 +114,42 @@ const MusicaPlayer: React.FC<MusicaPlayerProps> = ({
   // EFECTOS
   // ============================================================================
 
-  // Notificar cambio de canción actual
+  // Notificar cambio de canción actual (al padre, para UI local)
   useEffect(() => {
     const cancionActual = todasLasCanciones.find((c) => c.id === cancionActualId);
     onCancionChange?.(cancionActual || null);
   }, [cancionActualId]);
+
+  // ── Emitir "now playing" en tiempo real ─────────────────────────────────
+  // Se dispara cuando cambia la canción o el estado play/pause inmediatamente,
+  // y además cada ~3s mientras se reproduce (para mantener sincronizado el tiempo
+  // a quien esté escuchando del lado del cliente, sin saturar el socket).
+  useEffect(() => {
+    if (!onNowPlayingChange) return;
+
+    const cancionActual = todasLasCanciones.find((c) => c.id === cancionActualId);
+
+    const data: NowPlayingData = {
+      id: cancionActual?.id || null,
+      titulo: cancionActual?.titulo || null,
+      artista: cancionActual?.artista || null,
+      isPlaying,
+      currentTime,
+      duration,
+    };
+
+    const now = Date.now();
+    const key = `${data.id}-${data.isPlaying}`;
+    const cambioDeCancionOEstado = key !== lastEmitKeyRef.current;
+    const pasaronTresSegundos = now - lastEmitRef.current >= 3000;
+
+    if (cambioDeCancionOEstado || pasaronTresSegundos) {
+      onNowPlayingChange(data);
+      lastEmitRef.current = now;
+      lastEmitKeyRef.current = key;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cancionActualId, isPlaying, Math.floor(currentTime), duration]);
 
   // Eventos del audio
   useEffect(() => {
@@ -154,7 +202,6 @@ const MusicaPlayer: React.FC<MusicaPlayerProps> = ({
       }
     };
 
-    // Pequeño delay para no cerrar inmediatamente al abrir
     const timer = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside);
     }, 50);
@@ -267,7 +314,7 @@ const MusicaPlayer: React.FC<MusicaPlayerProps> = ({
   };
 
   // ============================================================================
-  // SEEK — barra de progreso con drag libre (retroceder Y adelantar)
+  // SEEK — barra de progreso: click en cualquier punto + drag libre
   // ============================================================================
 
   const calcularTiempoDesdePosicion = (clientX: number): number => {
@@ -276,6 +323,20 @@ const MusicaPlayer: React.FC<MusicaPlayerProps> = ({
     const rect = bar.getBoundingClientRect();
     const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     return pct * duration;
+  };
+
+  const aplicarSeek = (clientX: number) => {
+    if (!audioRef.current || duration === 0) return;
+    const t = calcularTiempoDesdePosicion(clientX);
+    audioRef.current.currentTime = t;
+    setCurrentTime(t);
+    setScrubTime(t);
+  };
+
+  // Click simple (sin arrastrar) en cualquier parte de la barra → salta ahí directo
+  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isScrubbing) return; // si venía de un drag, el mouseup ya se encargó
+    aplicarSeek(e.clientX);
   };
 
   const handleProgressMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -313,7 +374,7 @@ const MusicaPlayer: React.FC<MusicaPlayerProps> = ({
     };
   }, [isScrubbing, duration]);
 
-  // Touch support para la barra de progreso
+  // Touch support para la barra de progreso (click/tap en cualquier lado también)
   const handleProgressTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (!audioRef.current || duration === 0) return;
     setIsScrubbing(true);
@@ -511,7 +572,6 @@ const MusicaPlayer: React.FC<MusicaPlayerProps> = ({
                   className="absolute right-0 top-full mt-2 z-50 bg-gray-900 border border-white/10 rounded-xl shadow-2xl p-4"
                   style={{ width: 220 }}
                 >
-                  {/* Flecha decorativa */}
                   <div
                     className="absolute -top-2 right-3 w-4 h-2 overflow-hidden"
                     aria-hidden="true"
@@ -546,7 +606,6 @@ const MusicaPlayer: React.FC<MusicaPlayerProps> = ({
                     <span className="text-white/40 text-[10px]">Máx</span>
                   </div>
 
-                  {/* Presets rápidos */}
                   <div className="flex gap-1 mt-3">
                     {[0, 0.25, 0.5, 0.75, 1].map((v) => (
                       <button
@@ -578,16 +637,17 @@ const MusicaPlayer: React.FC<MusicaPlayerProps> = ({
             </div>
           </div>
 
-          {/* ── Barra de progreso con drag libre ─────────────────────── */}
+          {/* ── Barra de progreso: click en cualquier lado + drag libre ── */}
           <div
             ref={progressRef}
+            onClick={handleProgressClick}
             onMouseDown={handleProgressMouseDown}
             onTouchStart={handleProgressTouchStart}
-            className="relative h-5 flex items-center cursor-pointer group"
-            title="Arrastrá para cambiar la posición"
+            className="relative h-6 flex items-center cursor-pointer group py-2 -my-2"
+            title="Hacé clic o arrastrá para cambiar la posición"
           >
-            {/* Track de fondo */}
-            <div className="absolute inset-x-0 h-2 bg-white/20 rounded-full overflow-visible">
+            {/* Track de fondo (más alto el área clickeable real, visual más fino) */}
+            <div className="absolute inset-x-0 h-2 bg-white/20 rounded-full overflow-visible pointer-events-none">
               {/* Relleno */}
               <div
                 className="h-full bg-gradient-to-r from-green-400 to-blue-400 rounded-full"
@@ -597,7 +657,7 @@ const MusicaPlayer: React.FC<MusicaPlayerProps> = ({
 
             {/* Thumb (bolita) */}
             <div
-              className={`absolute w-4 h-4 bg-white rounded-full shadow-lg -translate-x-1/2 transition-transform
+              className={`absolute w-4 h-4 bg-white rounded-full shadow-lg -translate-x-1/2 transition-transform pointer-events-none
                 ${isScrubbing ? 'scale-125' : 'scale-0 group-hover:scale-100'}`}
               style={{ left: `${progressPct}%` }}
             />
@@ -605,7 +665,7 @@ const MusicaPlayer: React.FC<MusicaPlayerProps> = ({
 
           {/* Hint de uso */}
           <div className="mt-1.5 text-white/40 text-[10px] text-center">
-            Arrastrá la barra para retroceder o adelantar
+            Tocá o arrastrá la barra para retroceder o adelantar
           </div>
 
           {/* Estado */}
@@ -814,7 +874,7 @@ const MusicaPlayer: React.FC<MusicaPlayerProps> = ({
           <p className="text-blue-300 text-xs font-semibold mb-1">💡 Cómo usar:</p>
           <ul className="text-blue-300/80 text-[10px] space-y-0.5 list-disc list-inside">
             <li>Doble clic en una canción para marcarla como siguiente</li>
-            <li>Arrastrá la barra de progreso para retroceder o adelantar</li>
+            <li>Tocá o arrastrá la barra de progreso para retroceder o adelantar</li>
             <li>Las canciones en memoria se pueden subir al backend (💾)</li>
             <li>Solo el dueño puede reproducir durante la transmisión en vivo</li>
           </ul>
