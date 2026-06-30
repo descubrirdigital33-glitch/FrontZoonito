@@ -343,7 +343,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ radio, onClose }) => {
 };
 
 // ============================================================
-// Player
+// Player — modo dueño intacto + modo oyente estéreo de auto
 // ============================================================
 interface PlayerProps {
     radio: RadioStation;
@@ -368,6 +368,115 @@ interface PlayerProps {
     owner?: UserType;
 }
 
+// ── VU Meter animado (solo modo oyente) ─────────────────────
+const VU_BARS = 28;
+
+const VUMeter: React.FC<{ active: boolean }> = ({ active }) => {
+    const [levels, setLevels] = useState<number[]>(Array(VU_BARS).fill(0));
+    const rafRef = useRef<number>();
+
+    useEffect(() => {
+        if (!active) {
+            setLevels(Array(VU_BARS).fill(0));
+            return;
+        }
+
+        let frame = 0;
+        const targets = Array(VU_BARS).fill(0);
+        const current = Array(VU_BARS).fill(0);
+
+        const tick = () => {
+            frame++;
+            if (frame % 4 === 0) {
+                for (let i = 0; i < VU_BARS; i++) {
+                    const center = Math.abs(i - VU_BARS / 2) / (VU_BARS / 2);
+                    const peak = (1 - center * 0.6) * (0.4 + Math.random() * 0.6);
+                    targets[i] = peak;
+                }
+            }
+            for (let i = 0; i < VU_BARS; i++) {
+                current[i] += (targets[i] - current[i]) * 0.2;
+            }
+            setLevels([...current]);
+            rafRef.current = requestAnimationFrame(tick);
+        };
+
+        rafRef.current = requestAnimationFrame(tick);
+        return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+    }, [active]);
+
+    const getColor = (level: number, index: number) => {
+        const center = Math.abs(index - VU_BARS / 2) / (VU_BARS / 2);
+        if (level > 0.82) return '#ff3366';
+        if (level > 0.6) return '#ffaa00';
+        if (center < 0.3) return '#00d4ff';
+        return '#00ff88';
+    };
+
+    return (
+        <div className="rs-stereo__vu" aria-hidden="true">
+            {levels.map((level, i) => (
+                <div
+                    key={i}
+                    className="rs-stereo__vu-bar"
+                    style={{
+                        height: `${Math.max(4, level * 100)}%`,
+                        background: active ? getColor(level, i) : 'rgba(255,255,255,0.06)',
+                        boxShadow: active && level > 0.5 ? `0 0 6px ${getColor(level, i)}88` : 'none',
+                    }}
+                />
+            ))}
+        </div>
+    );
+};
+
+// ── Barra de progreso tipo segmentos LED (solo modo oyente) ──
+const SegmentBar: React.FC<{ current: number; total: number; segments?: number }> = ({
+    current, total, segments = 30
+}) => {
+    const filled = total > 0 ? (current / total) * segments : 0;
+    return (
+        <div className="rs-stereo__progress-segs" aria-label="Progreso">
+            {Array.from({ length: segments }, (_, i) => {
+                const on = i < Math.floor(filled);
+                const half = !on && i < filled;
+                return (
+                    <div
+                        key={i}
+                        className={`rs-stereo__seg${on ? ' rs-stereo__seg--on' : half ? ' rs-stereo__seg--half' : ''}`}
+                    />
+                );
+            })}
+        </div>
+    );
+};
+
+// ── Señal de antena (solo modo oyente) ───────────────────────
+const SignalBars: React.FC<{ strength?: number }> = ({ strength = 4 }) => (
+    <div className="rs-stereo__signal" aria-label={`Señal: ${strength}/5`}>
+        {[12, 18, 26, 34, 44].map((h, i) => (
+            <div
+                key={i}
+                className={`rs-stereo__signal-bar${i < strength ? ' rs-stereo__signal-bar--on' : ''}`}
+                style={{ height: h }}
+            />
+        ))}
+    </div>
+);
+
+// ── Ticker con texto duplicado para loop sin salto (solo modo oyente) ──
+const Ticker: React.FC<{ text: string; paused?: boolean }> = ({ text, paused }) => {
+    const spaced = `${text}     ·     `;
+    const double = spaced + spaced;
+    return (
+        <div className="rs-stereo__ticker-wrap">
+            <div className={`rs-stereo__ticker${paused ? ' rs-stereo__ticker--paused' : ''}`}>
+                {double}
+            </div>
+        </div>
+    );
+};
+
 const Player: React.FC<PlayerProps> = ({
     radio, currentTrack, isPlaying, isMicMuted, micVolume, musicVolume,
     onPlayPause, onToggleMic, onMicVolumeChange, onMusicVolumeChange,
@@ -381,252 +490,395 @@ const Player: React.FC<PlayerProps> = ({
     const [showVolumeControls, setShowVolumeControls] = useState(false);
     const displayLogo = radio.logo || owner?.avatar || '/assets/zoonito.jpg';
 
-    return (
-        <div className="rs-player">
-            <div className="rs-player__body">
-                {/* Fila principal */}
-                <div className="rs-player__row">
+    // Texto del ticker para el modo oyente: usa el track que viene en vivo desde el backend,
+    // no solo lo que viene de tracks subidos manualmente
+    const tickerText = currentTrack
+        ? `${currentTrack.title}  —  ${currentTrack.artist}`
+        : radio.isLive
+            ? 'En vivo · ' + radio.name
+            : radio.name + ' · ' + radio.description;
 
-                    {/* Controles izquierda */}
-                    <div className="rs-player__controls">
-                        {/* Play/Pause */}
-                        <button
-                            className="rs-play-btn"
-                            onClick={onPlayPause}
-                            disabled={!radio.isLive || isLoadingStream}
-                        >
-                            {isLoadingStream
-                                ? <div className="rs-spinner" />
-                                : isPlaying
-                                    ? <Pause size={28} />
-                                    : (
-                                        <div className={`rs-play-btn__inner ${isOwner ? 'rs-play-btn__inner--owner' : 'rs-play-btn__inner--listener'}`}>
-                                            {isOwner
-                                                ? <RadioTower size={22} color="#fff" />
-                                                : <Play size={22} color="#fff" style={{ marginLeft: 3 }} />}
-                                        </div>
-                                    )}
-                        </button>
+    // ============================================================
+    // MODO DUEÑO — sin cambios de funcionalidad
+    // ============================================================
+    if (isOwner) {
+        return (
+            <div className="rs-player">
+                <div className="rs-player__body">
+                    {/* Fila principal */}
+                    <div className="rs-player__row">
 
-                        {/* Mic toggle */}
-                        {isOwner && canTransmit && radio.isLive && (
+                        {/* Controles izquierda */}
+                        <div className="rs-player__controls">
+                            {/* Play/Pause */}
                             <button
-                                className={`rs-mic-btn ${isMicMuted ? 'rs-mic-btn--muted' : 'rs-mic-btn--active'}`}
-                                onClick={onToggleMic}
+                                className="rs-play-btn"
+                                onClick={onPlayPause}
+                                disabled={!radio.isLive || isLoadingStream}
                             >
-                                {isMicMuted
-                                    ? <MicOff size={22} color="#f87171" />
-                                    : <Mic size={22} color="#86efac" />}
+                                {isLoadingStream
+                                    ? <div className="rs-spinner" />
+                                    : isPlaying
+                                        ? <Pause size={28} />
+                                        : (
+                                            <div className={`rs-play-btn__inner ${isOwner ? 'rs-play-btn__inner--owner' : 'rs-play-btn__inner--listener'}`}>
+                                                {isOwner
+                                                    ? <RadioTower size={22} color="#fff" />
+                                                    : <Play size={22} color="#fff" style={{ marginLeft: 3 }} />}
+                                            </div>
+                                        )}
                             </button>
-                        )}
 
-                        {/* Logo */}
-                        <div className="rs-radio-logo">
-                            <img src={displayLogo} alt={radio.name} />
+                            {/* Mic toggle */}
+                            {isOwner && canTransmit && radio.isLive && (
+                                <button
+                                    className={`rs-mic-btn ${isMicMuted ? 'rs-mic-btn--muted' : 'rs-mic-btn--active'}`}
+                                    onClick={onToggleMic}
+                                >
+                                    {isMicMuted
+                                        ? <MicOff size={22} color="#f87171" />
+                                        : <Mic size={22} color="#86efac" />}
+                                </button>
+                            )}
+
+                            {/* Logo */}
+                            <div className="rs-radio-logo">
+                                <img src={displayLogo} alt={radio.name} />
+                                {isOwner && (
+                                    <>
+                                        <div className="rs-radio-logo__upload">
+                                            <Upload size={24} />
+                                        </div>
+                                        <input
+                                            type="file" accept="image/*"
+                                            className="rs-radio-logo__input"
+                                            onChange={async (e) => {
+                                                const f = e.target.files?.[0];
+                                                if (f) await onUploadLogo(f);
+                                            }}
+                                        />
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Info */}
+                        <div className="rs-player__info">
+                            <div className="rs-player__badges">
+                                {radio.isLive ? (
+                                    <span className="rs-badge rs-badge--live"><Mic size={10} />EN VIVO</span>
+                                ) : (
+                                    <span className="rs-badge rs-badge--offline"><Radio size={10} />OFF LINE</span>
+                                )}
+                                {isOwner && isPlaying && radio.isLive && (
+                                    <>
+                                        <span className="rs-badge rs-badge--tx"><Mic size={10} />TRANSMITIENDO</span>
+                                        {isMicMuted && (
+                                            <span className="rs-badge rs-badge--muted"><MicOff size={10} />MIC MUTEADO</span>
+                                        )}
+                                    </>
+                                )}
+                                {!isOwner && isPlaying && !streamError && (
+                                    <span className="rs-badge rs-badge--listen"><Volume2 size={10} />ESCUCHANDO</span>
+                                )}
+                            </div>
+                            <h3 className="rs-player__name">{radio.name}</h3>
+                            {currentTrack ? (
+                                <p className="rs-player__track">{currentTrack.title} — {currentTrack.artist}</p>
+                            ) : (
+                                <p className="rs-player__track" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                                    {radio.description || (radio.isLive ? 'Transmitiendo en vivo' : 'Radio fuera de línea')}
+                                </p>
+                            )}
+                            {streamError && (
+                                <p className="rs-player__error">
+                                    <X size={12} style={{ flexShrink: 0 }} />{streamError}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Acciones */}
+                        <div className="rs-player__actions">
+                            <button
+                                className={`rs-like-btn ${hasLiked ? 'rs-like-btn--on' : 'rs-like-btn--off'}`}
+                                onClick={onToggleLike}
+                            >
+                                <Heart size={18} fill={hasLiked ? 'currentColor' : 'none'} />
+                                <span>{radio.likes}</span>
+                            </button>
+
+                            <div className="rs-listeners">
+                                <Users size={18} /><span>{listenerCount}</span>
+                            </div>
+
+                            <button className="rs-icon-btn" onClick={onShare} title="Compartir">
+                                <Share2 size={20} />
+                            </button>
+
                             {isOwner && (
                                 <>
-                                    <div className="rs-radio-logo__upload">
-                                        <Upload size={24} />
-                                    </div>
-                                    <input
-                                        type="file" accept="image/*"
-                                        className="rs-radio-logo__input"
-                                        onChange={async (e) => {
-                                            const f = e.target.files?.[0];
-                                            if (f) await onUploadLogo(f);
-                                        }}
-                                    />
-                                </>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Info */}
-                    <div className="rs-player__info">
-                        <div className="rs-player__badges">
-                            {radio.isLive ? (
-                                <span className="rs-badge rs-badge--live"><Mic size={10} />EN VIVO</span>
-                            ) : (
-                                <span className="rs-badge rs-badge--offline"><Radio size={10} />OFF LINE</span>
-                            )}
-                            {isOwner && isPlaying && radio.isLive && (
-                                <>
-                                    <span className="rs-badge rs-badge--tx"><Mic size={10} />TRANSMITIENDO</span>
-                                    {isMicMuted && (
-                                        <span className="rs-badge rs-badge--muted"><MicOff size={10} />MIC MUTEADO</span>
+                                    <button className="rs-icon-btn" onClick={onEditRadio} title="Configurar radio">
+                                        <Settings size={20} />
+                                    </button>
+                                    {canTransmit && (
+                                        <button
+                                            className={`rs-live-btn ${radio.isLive ? 'rs-live-btn--on' : 'rs-live-btn--off'}`}
+                                            onClick={onToggleLive}
+                                        >
+                                            <Mic size={16} style={{ display: 'inline', marginRight: 4 }} />
+                                            {radio.isLive ? 'Detener' : 'Iniciar'}
+                                        </button>
                                     )}
                                 </>
                             )}
-                            {!isOwner && isPlaying && !streamError && (
-                                <span className="rs-badge rs-badge--listen"><Volume2 size={10} />ESCUCHANDO</span>
-                            )}
                         </div>
-                        <h3 className="rs-player__name">{radio.name}</h3>
-                        {currentTrack ? (
-                            <p className="rs-player__track">{currentTrack.title} — {currentTrack.artist}</p>
-                        ) : (
-                            <p className="rs-player__track" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                                {radio.description || (radio.isLive ? 'Transmitiendo en vivo' : 'Radio fuera de línea')}
-                            </p>
-                        )}
-                        {streamError && (
-                            <p className="rs-player__error">
-                                <X size={12} style={{ flexShrink: 0 }} />{streamError}
-                            </p>
-                        )}
                     </div>
 
-                    {/* Acciones */}
-                    <div className="rs-player__actions">
-                        <button
-                            className={`rs-like-btn ${hasLiked ? 'rs-like-btn--on' : 'rs-like-btn--off'}`}
-                            onClick={onToggleLike}
-                        >
-                            <Heart size={18} fill={hasLiked ? 'currentColor' : 'none'} />
-                            <span>{radio.likes}</span>
-                        </button>
+                    {/* Panel de volumen */}
+                    {isOwner && canTransmit && radio.isLive && (
+                        <div className="rs-volume-panel">
+                            <button
+                                className="rs-volume-panel__toggle"
+                                onClick={() => setShowVolumeControls(!showVolumeControls)}
+                            >
+                                <span className="rs-volume-panel__toggle-label">
+                                    <Volume2 size={18} />Controles de Volumen
+                                </span>
+                                <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>
+                                    {showVolumeControls ? '▼' : '▶'}
+                                </span>
+                            </button>
 
-                        <div className="rs-listeners">
-                            <Users size={18} /><span>{listenerCount}</span>
+                            {showVolumeControls && (
+                                <div className="rs-volume-controls">
+                                    {/* Mic */}
+                                    <div className="rs-volume-row">
+                                        <div className="rs-volume-label-row">
+                                            <span className="rs-volume-label"><Mic size={16} />Volumen del Micrófono</span>
+                                            <span className="rs-volume-value rs-volume-value--mic">
+                                                {Math.round(micVolume * 100)}%
+                                            </span>
+                                        </div>
+                                        <input
+                                            type="range" min="0" max="1" step="0.01" value={micVolume}
+                                            className="rs-range"
+                                            style={{
+                                                background: `linear-gradient(to right,#8b5cf6 0%,#8b5cf6 ${micVolume * 100}%,rgba(255,255,255,0.1) ${micVolume * 100}%,rgba(255,255,255,0.1) 100%)`
+                                            }}
+                                            onChange={(e) => onMicVolumeChange(parseFloat(e.target.value))}
+                                        />
+                                        <div className="rs-range-hints"><span>Silencio</span><span>Máximo</span></div>
+                                    </div>
+
+                                    {/* Music */}
+                                    <div className="rs-volume-row">
+                                        <div className="rs-volume-label-row">
+                                            <span className="rs-volume-label"><Music size={16} />Volumen de la Música</span>
+                                            <span className="rs-volume-value rs-volume-value--music">
+                                                {Math.round(musicVolume * 100)}%
+                                            </span>
+                                        </div>
+                                        <input
+                                            type="range" min="0" max="1" step="0.01" value={musicVolume}
+                                            className="rs-range"
+                                            style={{
+                                                background: `linear-gradient(to right,#3b82f6 0%,#3b82f6 ${musicVolume * 100}%,rgba(255,255,255,0.1) ${musicVolume * 100}%,rgba(255,255,255,0.1) 100%)`
+                                            }}
+                                            onChange={(e) => onMusicVolumeChange(parseFloat(e.target.value))}
+                                        />
+                                        <div className="rs-range-hints"><span>Silencio</span><span>Máximo</span></div>
+                                    </div>
+
+                                    <div className="rs-volume-tip">
+                                        💡 <strong>Tip:</strong> Baja la música al 30–40% cuando hables para que tu voz se escuche clara.
+                                    </div>
+
+                                    <div className="rs-volume-presets">
+                                        <button
+                                            className="rs-preset-btn rs-preset-btn--mic"
+                                            onClick={() => { onMicVolumeChange(1); onMusicVolumeChange(0.3); }}
+                                        >
+                                            🎤 Modo Locutor
+                                            <span className="rs-preset-sub">Mic 100% · Música 30%</span>
+                                        </button>
+                                        <button
+                                            className="rs-preset-btn rs-preset-btn--music"
+                                            onClick={() => { onMicVolumeChange(0.5); onMusicVolumeChange(1); }}
+                                        >
+                                            🎵 Modo Musical
+                                            <span className="rs-preset-sub">Mic 50% · Música 100%</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
+                    )}
 
-                        <button className="rs-icon-btn" onClick={onShare} title="Compartir">
-                            <Share2 size={20} />
-                        </button>
+                    {/* Estado del micrófono */}
+                    {isOwner && isPlaying && radio.isLive && (
+                        <div className={`rs-alert ${isMicMuted ? 'rs-alert--mic-muted' : 'rs-alert--mic-ok'}`}>
+                            <div className="rs-alert__dot" />
+                            <p style={{ margin: 0 }}>
+                                {isMicMuted
+                                    ? '🔇 Tu micrófono está silenciado. Los oyentes no te escuchan.'
+                                    : `🎤 Tu micrófono está transmitiendo en vivo a ${listenerCount} oyente${listenerCount !== 1 ? 's' : ''}`}
+                            </p>
+                        </div>
+                    )}
 
-                        {isOwner && (
-                            <>
-                                <button className="rs-icon-btn" onClick={onEditRadio} title="Configurar radio">
-                                    <Settings size={20} />
-                                </button>
-                                {canTransmit && (
-                                    <button
-                                        className={`rs-live-btn ${radio.isLive ? 'rs-live-btn--on' : 'rs-live-btn--off'}`}
-                                        onClick={onToggleLive}
-                                    >
-                                        <Mic size={16} style={{ display: 'inline', marginRight: 4 }} />
-                                        {radio.isLive ? 'Detener' : 'Iniciar'}
-                                    </button>
-                                )}
-                            </>
-                        )}
+                    {!canTransmit && !isOwner && (
+                        <div className="rs-alert rs-alert--premium">
+                            <Shield size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+                            <p style={{ margin: 0 }}>
+                                Estás en modo oyente.{' '}
+                                <button>Actualiza a Premium</button>{' '}
+                                para transmitir tu propia radio.
+                            </p>
+                        </div>
+                    )}
+
+                    {!radio.isLive && (
+                        <div className="rs-alert rs-alert--offline">
+                            <Radio size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+                            <p style={{ margin: 0 }}>
+                                {isOwner && canTransmit
+                                    ? 'Haz clic en "Iniciar" para comenzar a transmitir en vivo con tu micrófono'
+                                    : 'Esta radio está fuera de línea en este momento'}
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // ============================================================
+    // MODO OYENTE — Estilo estéreo de auto
+    // ============================================================
+    return (
+        <div className="rs-car-stereo" role="region" aria-label="Reproductor de radio">
+            {/* Raya superior */}
+            <div className="rs-stereo__topbar" />
+
+            {/* Display LCD */}
+            <div className="rs-stereo__display">
+                {/* Fila superior: badge + nombre + señal */}
+                <div className="rs-stereo__display-top">
+                    <span className={`rs-stereo__band${radio.isLive ? ' rs-stereo__band--live' : ''}`}>
+                        {radio.isLive ? 'LIVE' : 'OFF'}
+                    </span>
+                    <span className="rs-stereo__freq">{radio.name}</span>
+                    <SignalBars strength={radio.isLive ? 5 : 1} />
+                </div>
+
+                {/* Ticker con canción actual — toma currentTrack en vivo, no solo backend */}
+                <Ticker text={tickerText} paused={!isPlaying} />
+
+                {/* Barra de progreso segmentada — estado de reproducción en vivo */}
+                <div className="rs-stereo__progress-row">
+                    <span className="rs-stereo__time-label">
+                        {isPlaying ? 'LIVE' : '– –'}
+                    </span>
+                    <SegmentBar
+                        current={isPlaying ? Date.now() % 30000 : 0}
+                        total={30000}
+                        segments={30}
+                    />
+                    <span className="rs-stereo__time-label rs-stereo__time-label--right">
+                        {isPlaying ? '●' : '○'}
+                    </span>
+                </div>
+            </div>
+
+            {/* VU Meter */}
+            <VUMeter active={isPlaying && radio.isLive && !streamError} />
+
+            {/* Divisor */}
+            <div className="rs-stereo__divider" />
+
+            {/* Controles */}
+            <div className="rs-stereo__controls">
+                {/* Lado izquierdo: like + listeners */}
+                <div className="rs-stereo__side rs-stereo__side--left">
+                    <button
+                        className={`rs-stereo__btn${hasLiked ? ' rs-stereo__btn--liked' : ''}`}
+                        onClick={onToggleLike}
+                        aria-label={hasLiked ? 'Quitar like' : 'Dar like'}
+                        title={`${radio.likes} likes`}
+                    >
+                        <Heart size={15} fill={hasLiked ? 'currentColor' : 'none'} />
+                    </button>
+
+                    <div className="rs-stereo__listeners" title="Oyentes">
+                        <Users size={11} />
+                        <span>{listenerCount}</span>
                     </div>
                 </div>
 
-                {/* Panel de volumen */}
-                {isOwner && canTransmit && radio.isLive && (
-                    <div className="rs-volume-panel">
+                {/* Play / Pause central */}
+                <button
+                    className={`rs-stereo__play${isPlaying ? ' rs-stereo__play--playing' : ''}`}
+                    onClick={onPlayPause}
+                    disabled={!radio.isLive || isLoadingStream}
+                    aria-label={isPlaying ? 'Pausar' : 'Reproducir'}
+                >
+                    {isLoadingStream ? (
+                        <div className="rs-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
+                    ) : isPlaying ? (
+                        <Pause size={22} />
+                    ) : (
+                        <Play size={22} style={{ marginLeft: 2 }} />
+                    )}
+                </button>
+
+                {/* Lado derecho: compartir + error */}
+                <div className="rs-stereo__side rs-stereo__side--right">
+                    <button
+                        className="rs-stereo__btn"
+                        onClick={onShare}
+                        aria-label="Compartir"
+                    >
+                        <Share2 size={15} />
+                    </button>
+
+                    {streamError && (
                         <button
-                            className="rs-volume-panel__toggle"
-                            onClick={() => setShowVolumeControls(!showVolumeControls)}
+                            className="rs-stereo__btn"
+                            style={{ borderColor: 'rgba(255,51,102,0.4)', color: '#ff3366' }}
+                            title={streamError}
+                            aria-label="Error de conexión"
                         >
-                            <span className="rs-volume-panel__toggle-label">
-                                <Volume2 size={18} />Controles de Volumen
-                            </span>
-                            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>
-                                {showVolumeControls ? '▼' : '▶'}
-                            </span>
+                            <X size={15} />
                         </button>
-
-                        {showVolumeControls && (
-                            <div className="rs-volume-controls">
-                                {/* Mic */}
-                                <div className="rs-volume-row">
-                                    <div className="rs-volume-label-row">
-                                        <span className="rs-volume-label"><Mic size={16} />Volumen del Micrófono</span>
-                                        <span className="rs-volume-value rs-volume-value--mic">
-                                            {Math.round(micVolume * 100)}%
-                                        </span>
-                                    </div>
-                                    <input
-                                        type="range" min="0" max="1" step="0.01" value={micVolume}
-                                        className="rs-range"
-                                        style={{
-                                            background: `linear-gradient(to right,#8b5cf6 0%,#8b5cf6 ${micVolume * 100}%,rgba(255,255,255,0.1) ${micVolume * 100}%,rgba(255,255,255,0.1) 100%)`
-                                        }}
-                                        onChange={(e) => onMicVolumeChange(parseFloat(e.target.value))}
-                                    />
-                                    <div className="rs-range-hints"><span>Silencio</span><span>Máximo</span></div>
-                                </div>
-
-                                {/* Music */}
-                                <div className="rs-volume-row">
-                                    <div className="rs-volume-label-row">
-                                        <span className="rs-volume-label"><Music size={16} />Volumen de la Música</span>
-                                        <span className="rs-volume-value rs-volume-value--music">
-                                            {Math.round(musicVolume * 100)}%
-                                        </span>
-                                    </div>
-                                    <input
-                                        type="range" min="0" max="1" step="0.01" value={musicVolume}
-                                        className="rs-range"
-                                        style={{
-                                            background: `linear-gradient(to right,#3b82f6 0%,#3b82f6 ${musicVolume * 100}%,rgba(255,255,255,0.1) ${musicVolume * 100}%,rgba(255,255,255,0.1) 100%)`
-                                        }}
-                                        onChange={(e) => onMusicVolumeChange(parseFloat(e.target.value))}
-                                    />
-                                    <div className="rs-range-hints"><span>Silencio</span><span>Máximo</span></div>
-                                </div>
-
-                                <div className="rs-volume-tip">
-                                    💡 <strong>Tip:</strong> Baja la música al 30–40% cuando hables para que tu voz se escuche clara.
-                                </div>
-
-                                <div className="rs-volume-presets">
-                                    <button
-                                        className="rs-preset-btn rs-preset-btn--mic"
-                                        onClick={() => { onMicVolumeChange(1); onMusicVolumeChange(0.3); }}
-                                    >
-                                        🎤 Modo Locutor
-                                        <span className="rs-preset-sub">Mic 100% · Música 30%</span>
-                                    </button>
-                                    <button
-                                        className="rs-preset-btn rs-preset-btn--music"
-                                        onClick={() => { onMicVolumeChange(0.5); onMusicVolumeChange(1); }}
-                                    >
-                                        🎵 Modo Musical
-                                        <span className="rs-preset-sub">Mic 50% · Música 100%</span>
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Estado del micrófono */}
-                {isOwner && isPlaying && radio.isLive && (
-                    <div className={`rs-alert ${isMicMuted ? 'rs-alert--mic-muted' : 'rs-alert--mic-ok'}`}>
-                        <div className="rs-alert__dot" />
-                        <p style={{ margin: 0 }}>
-                            {isMicMuted
-                                ? '🔇 Tu micrófono está silenciado. Los oyentes no te escuchan.'
-                                : `🎤 Tu micrófono está transmitiendo en vivo a ${listenerCount} oyente${listenerCount !== 1 ? 's' : ''}`}
-                        </p>
-                    </div>
-                )}
-
-                {!canTransmit && !isOwner && (
-                    <div className="rs-alert rs-alert--premium">
-                        <Shield size={18} style={{ flexShrink: 0, marginTop: 2 }} />
-                        <p style={{ margin: 0 }}>
-                            Estás en modo oyente.{' '}
-                            <button>Actualiza a Premium</button>{' '}
-                            para transmitir tu propia radio.
-                        </p>
-                    </div>
-                )}
-
-                {!radio.isLive && (
-                    <div className="rs-alert rs-alert--offline">
-                        <Radio size={18} style={{ flexShrink: 0, marginTop: 2 }} />
-                        <p style={{ margin: 0 }}>
-                            {isOwner && canTransmit
-                                ? 'Haz clic en "Iniciar" para comenzar a transmitir en vivo con tu micrófono'
-                                : 'Esta radio está fuera de línea en este momento'}
-                        </p>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
+
+            {/* Divisor */}
+            <div className="rs-stereo__divider" />
+
+            {/* Info inferior */}
+            {radio.isLive ? (
+                <div className="rs-stereo__info">
+                    <span className="rs-stereo__radio-name">{radio.name}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div className={`rs-stereo__status-dot${radio.isLive ? ' rs-stereo__status-dot--live' : ' rs-stereo__status-dot--offline'}`} />
+                        <span className="rs-stereo__status-label">
+                            {isPlaying ? 'Escuchando' : radio.isLive ? 'En vivo' : 'Fuera de línea'}
+                        </span>
+                    </div>
+                </div>
+            ) : (
+                <div className="rs-stereo__offline">
+                    <div className="rs-stereo__offline-icon">
+                        <Radio size={32} />
+                    </div>
+                    <p className="rs-stereo__offline-title">Radio fuera de línea</p>
+                    <p className="rs-stereo__offline-sub">
+                        {radio.description || 'El DJ no está transmitiendo en este momento'}
+                    </p>
+                </div>
+            )}
         </div>
     );
 };
