@@ -1109,20 +1109,17 @@ const RadioSystem: React.FC = () => {
         handleUpdateProfile, displayRadio, isOwner, canTransmit, canModerate,
     } = useRadioSystem({ radioId, user, getToken, loginUser });
 
-    // ── Stream / socket — UNA sola instancia para toda la página ────────────
-    // (antes se llamaba adentro de Player, lo que impedía conectar el
-    // "now playing" del dueño con MusicaPlayer, y abría conexiones redundantes)
-    const {
-        isLoadingStream, streamError, listenerCount, nowPlaying, emitNowPlaying
-    } = useRadioStream({
-        sessionId: radioId,
-        isOwner,
-        isPlaying,
-        micVolume,
-        musicVolume,
-        isMicMuted
-    });
-
+  const {
+    isLoadingStream, streamError, listenerCount, nowPlaying, emitNowPlaying,
+    isSharingSystemAudio, systemAudioError, shareSystemAudio, stopSystemAudio
+} = useRadioStream({
+    sessionId: radioId,
+    isOwner,
+    isPlaying,
+    micVolume,
+    musicVolume,
+    isMicMuted
+});
     // NUEVO: cuando el OYENTE recibe "now playing" por socket, actualiza su
     // currentTrack para que el Player (modo estéreo) muestre la canción que
     // está sonando en vivo, en tiempo real.
