@@ -373,7 +373,7 @@ const VU_BARS = 28;
 
 const VUMeter: React.FC<{ active: boolean }> = ({ active }) => {
     const [levels, setLevels] = useState<number[]>(Array(VU_BARS).fill(0));
-    const rafRef = useRef<number>();
+    const rafRef = useRef<number | undefined>(undefined);
 
     useEffect(() => {
         if (!active) {
