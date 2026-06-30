@@ -9,6 +9,13 @@ import {
     Zap, Plus, MicOff, Ban, RadioTower
 } from 'lucide-react';
 
+// ── Iconos del modo OYENTE (estéreo de auto) — react-icons ───
+import {
+    IoPlay, IoPause, IoHeart, IoHeartOutline, IoShareSocialOutline,
+    IoClose, IoRadioOutline, IoPeopleOutline,
+    IoVolumeHighOutline, IoVolumeMediumOutline, IoVolumeLowOutline,
+    IoVolumeMuteOutline, IoVolumeOffOutline
+} from 'react-icons/io5';
 
 import {
     useRadioSystem, api,
@@ -370,6 +377,11 @@ interface PlayerProps {
     isLoadingStream: boolean;
     streamError: string | null;
     listenerCount: number;
+    // ── NUEVO: control de volumen del OYENTE (subir/bajar/mutear) ──
+    listenerVolume: number;          // 0 a 1
+    isListenerMuted: boolean;
+    onListenerVolumeChange: (v: number) => void;
+    onToggleListenerMute: () => void;
 }
 
 // ── VU Meter animado (solo modo oyente) ─────────────────────
@@ -481,12 +493,114 @@ const Ticker: React.FC<{ text: string; paused?: boolean }> = ({ text, paused }) 
     );
 };
 
+// ── Ícono de volumen dinámico según nivel / mute (modo oyente) ──
+const getVolumeIcon = (volume: number, muted: boolean) => {
+    if (muted || volume === 0) return <IoVolumeMuteOutline size={15} />;
+    if (volume < 0.34) return <IoVolumeOffOutline size={15} />;
+    if (volume < 0.67) return <IoVolumeLowOutline size={15} />;
+    return <IoVolumeHighOutline size={15} />;
+};
+
+// ── Control de volumen del oyente (popup, modo oyente) ───────
+interface VolumeControlProps {
+    volume: number;
+    muted: boolean;
+    disabled: boolean;
+    onVolumeChange: (v: number) => void;
+    onToggleMute: () => void;
+}
+
+const VolumeControl: React.FC<VolumeControlProps> = ({
+    volume, muted, disabled, onVolumeChange, onToggleMute
+}) => {
+    const [open, setOpen] = useState(false);
+    const effectiveVolume = muted ? 0 : volume;
+    const pct = Math.round(effectiveVolume * 100);
+
+    const handleRangeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const v = parseFloat(e.target.value);
+        onVolumeChange(v);
+        // si estaba muteado y mueve el slider por encima de 0, desmutea
+        if (muted && v > 0) onToggleMute();
+    };
+
+    return (
+        <div className="rs-stereo__volume-wrap">
+            {open && (
+                <div className="rs-stereo__volume-backdrop" onClick={() => setOpen(false)} />
+            )}
+
+            <button
+                className={`rs-stereo__btn${open ? ' rs-stereo__btn--on' : ''}${muted ? ' rs-stereo__btn--muted' : ''}`}
+                onClick={() => setOpen((o) => !o)}
+                disabled={disabled}
+                aria-label="Control de volumen"
+                aria-expanded={open}
+                title={muted ? 'Silenciado' : `Volumen ${pct}%`}
+            >
+                {getVolumeIcon(effectiveVolume, muted)}
+            </button>
+
+            {open && (
+                <div className="rs-stereo__volume-popup" onClick={(e) => e.stopPropagation()}>
+                    <div className="rs-stereo__volume-header">
+                        <span className="rs-stereo__volume-label">Volumen</span>
+                        <span className="rs-stereo__volume-pct">{muted ? 'MUTE' : `${pct}%`}</span>
+                    </div>
+
+                    <div className="rs-stereo__volume-row">
+                        <button
+                            className={`rs-stereo__btn${muted ? ' rs-stereo__btn--muted' : ''}`}
+                            onClick={onToggleMute}
+                            aria-label={muted ? 'Activar sonido' : 'Silenciar'}
+                            title={muted ? 'Activar sonido' : 'Silenciar'}
+                        >
+                            {getVolumeIcon(effectiveVolume, muted)}
+                        </button>
+
+                        <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={effectiveVolume}
+                            onChange={handleRangeChange}
+                            disabled={disabled}
+                            className="rs-stereo__volume-range"
+                            style={{
+                                background: `linear-gradient(to right, #00d4ff 0%, #00d4ff ${pct}%, rgba(0,212,255,0.15) ${pct}%, rgba(0,212,255,0.15) 100%)`
+                            }}
+                            aria-label="Nivel de volumen"
+                        />
+                    </div>
+
+                    <div className="rs-stereo__volume-quick">
+                        {[25, 50, 75, 100].map((q) => (
+                            <button
+                                key={q}
+                                className={`rs-stereo__volume-quick-btn${!muted && pct === q ? ' rs-stereo__volume-quick-btn--active' : ''}`}
+                                onClick={() => {
+                                    onVolumeChange(q / 100);
+                                    if (muted) onToggleMute();
+                                }}
+                            >
+                                {q}%
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 const Player: React.FC<PlayerProps> = ({
     radio, currentTrack, isPlaying, isMicMuted, micVolume, musicVolume,
     onPlayPause, onToggleMic, onMicVolumeChange, onMusicVolumeChange,
     onShare, onEditRadio, onToggleLike, onToggleLive, onUploadLogo,
     hasLiked, isOwner, canTransmit, user, owner,
-    isLoadingStream, streamError, listenerCount
+    isLoadingStream, streamError, listenerCount,
+    listenerVolume, isListenerMuted, onListenerVolumeChange, onToggleListenerMute
 }) => {
     const [showVolumeControls, setShowVolumeControls] = useState(false);
     const displayLogo = radio.logo || owner?.avatar || '/assets/zoonito.jpg';
@@ -754,7 +868,7 @@ const Player: React.FC<PlayerProps> = ({
     }
 
     // ============================================================
-    // MODO OYENTE — Estilo estéreo de auto
+    // MODO OYENTE — Estilo estéreo de auto (react-icons + volumen)
     // ============================================================
     return (
         <div className="rs-car-stereo" role="region" aria-label="Reproductor de radio">
@@ -807,11 +921,11 @@ const Player: React.FC<PlayerProps> = ({
                         aria-label={hasLiked ? 'Quitar like' : 'Dar like'}
                         title={`${radio.likes} likes`}
                     >
-                        <Heart size={15} fill={hasLiked ? 'currentColor' : 'none'} />
+                        {hasLiked ? <IoHeart size={15} /> : <IoHeartOutline size={15} />}
                     </button>
 
                     <div className="rs-stereo__listeners" title="Oyentes">
-                        <Users size={11} />
+                        <IoPeopleOutline size={12} />
                         <span>{listenerCount}</span>
                     </div>
                 </div>
@@ -826,20 +940,29 @@ const Player: React.FC<PlayerProps> = ({
                     {isLoadingStream ? (
                         <div className="rs-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
                     ) : isPlaying ? (
-                        <Pause size={22} />
+                        <IoPause size={22} />
                     ) : (
-                        <Play size={22} style={{ marginLeft: 2 }} />
+                        <IoPlay size={22} style={{ marginLeft: 2 }} />
                     )}
                 </button>
 
-                {/* Lado derecho: compartir + error */}
+                {/* Lado derecho: volumen + compartir + error */}
                 <div className="rs-stereo__side rs-stereo__side--right">
+                    {/* ── Control de volumen (subir/bajar/mutear) ── */}
+                    <VolumeControl
+                        volume={listenerVolume}
+                        muted={isListenerMuted}
+                        disabled={!radio.isLive || !isPlaying}
+                        onVolumeChange={onListenerVolumeChange}
+                        onToggleMute={onToggleListenerMute}
+                    />
+
                     <button
                         className="rs-stereo__btn"
                         onClick={onShare}
                         aria-label="Compartir"
                     >
-                        <Share2 size={15} />
+                        <IoShareSocialOutline size={15} />
                     </button>
 
                     {streamError && (
@@ -849,7 +972,7 @@ const Player: React.FC<PlayerProps> = ({
                             title={streamError}
                             aria-label="Error de conexión"
                         >
-                            <X size={15} />
+                            <IoClose size={15} />
                         </button>
                     )}
                 </div>
@@ -872,7 +995,7 @@ const Player: React.FC<PlayerProps> = ({
             ) : (
                 <div className="rs-stereo__offline">
                     <div className="rs-stereo__offline-icon">
-                        <Radio size={32} />
+                        <IoRadioOutline size={32} />
                     </div>
                     <p className="rs-stereo__offline-title">Radio fuera de línea</p>
                     <p className="rs-stereo__offline-sub">
@@ -1109,9 +1232,25 @@ const RadioSystem: React.FC = () => {
         handleUpdateProfile, displayRadio, isOwner, canTransmit, canModerate,
     } = useRadioSystem({ radioId, user, getToken, loginUser });
 
+    // ── NUEVO: estado del volumen de escucha (solo aplica al OYENTE) ──
+    const [listenerVolume, setListenerVolume] = useState(0.8);
+    const [isListenerMuted, setIsListenerMuted] = useState(false);
+
+    const handleListenerVolumeChange = (v: number) => {
+        setListenerVolume(v);
+        if (v > 0 && isListenerMuted) setIsListenerMuted(false);
+    };
+
+    const handleToggleListenerMute = () => {
+        setIsListenerMuted((m) => !m);
+    };
+
   const {
     isLoadingStream, streamError, listenerCount, nowPlaying, emitNowPlaying,
-    isSharingSystemAudio, systemAudioError, shareSystemAudio, stopSystemAudio
+    isSharingSystemAudio, systemAudioError, shareSystemAudio, stopSystemAudio,
+    // Si tu hook useRadioStream expone una referencia al elemento <audio>
+    // (p. ej. `audioRef`), descomentá la siguiente línea para tomarla:
+    // audioRef,
 } = useRadioStream({
     sessionId: radioId,
     isOwner,
@@ -1120,6 +1259,20 @@ const RadioSystem: React.FC = () => {
     musicVolume,
     isMicMuted
 });
+
+    // ── NUEVO: aplica el volumen/mute del oyente al audio real.
+    // Esto funciona si useRadioStream expone `audioRef` (descomentado arriba).
+    // Si tu hook maneja el audio de otra forma (ej. Web Audio API / GainNode),
+    // reemplazá el cuerpo de este efecto por la llamada equivalente de tu hook.
+    /*
+    useEffect(() => {
+        if (isOwner) return;
+        if (audioRef?.current) {
+            audioRef.current.volume = isListenerMuted ? 0 : listenerVolume;
+        }
+    }, [listenerVolume, isListenerMuted, isOwner, audioRef]);
+    */
+
     // NUEVO: cuando el OYENTE recibe "now playing" por socket, actualiza su
     // currentTrack para que el Player (modo estéreo) muestre la canción que
     // está sonando en vivo, en tiempo real.
@@ -1293,6 +1446,10 @@ const RadioSystem: React.FC = () => {
                             isLoadingStream={isLoadingStream}
                             streamError={streamError}
                             listenerCount={listenerCount}
+                            listenerVolume={listenerVolume}
+                            isListenerMuted={isListenerMuted}
+                            onListenerVolumeChange={handleListenerVolumeChange}
+                            onToggleListenerMute={handleToggleListenerMute}
                         />
 
                         <div className="rs-grid-2">
