@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { setupAudioMixer, cleanupAudioMixer, captureSystemAudio, type SystemAudioResult } from '../components/audioMixerUtils';
-
 interface UseRadioStreamProps {
   sessionId: string;
   isOwner: boolean;
@@ -16,6 +15,7 @@ interface UseRadioStreamProps {
 interface WindowWithAudioContext extends Window {
   webkitAudioContext?: typeof AudioContext;
 }
+
 
 export interface NowPlayingData {
   id: string | null;
