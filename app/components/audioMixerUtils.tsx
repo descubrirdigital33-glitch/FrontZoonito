@@ -19,7 +19,6 @@ interface AudioMixerResult {
   processor: ScriptProcessorNode;
   cleanup: () => void;
 }
-
 interface CleanupParams {
   mediaStream: MediaStream | null;
   processor: ScriptProcessorNode | null;
