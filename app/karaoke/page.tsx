@@ -84,6 +84,8 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
   const audioSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const backgroundColorRef = useRef<RGB>({ r: 30, g: 27, b: 75 });
   const targetColorRef = useRef<RGB>({ r: 30, g: 27, b: 75 });
+  // NUEVO: posición flotante de la línea activa, para animar la transición en el video grabado
+  const currentLinePosRef = useRef<number>(-1);
   const ffmpegRef = useRef<FFmpeg | null>(null);
 
   useEffect(() => {
@@ -288,7 +290,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 
       if (colorChangeTimer >= colorChangeDuration) {
         useDarkColors = !useDarkColors;
-        
+
         if (useDarkColors) {
           targetColorRef.current = {
             r: Math.random() * 60 + 15,
@@ -302,7 +304,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
             b: Math.random() * 100 + 100
           };
         }
-        
+
         colorChangeTimer = 0;
 
         particles.forEach(p => {
@@ -369,34 +371,48 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
         ctx.fill();
       }
 
+      // ===== TRANSICIÓN SUAVE DE LETRAS (mejora) =====
+      // En vez de saltar directo a `currentLine`, interpolamos hacia ella cada frame.
+      // El factor 0.12 controla la velocidad: más bajo = más lento/atenuado, más alto = más rápido.
+      currentLinePosRef.current += (currentLine - currentLinePosRef.current) * 0.12;
+      const smoothLine = currentLinePosRef.current;
+
       const centerY = canvas.height / 2;
       const lineHeight = 100;
-      const startIndex = Math.max(0, currentLine - 2);
-      const endIndex = Math.min(lyrics.lines.length, currentLine + 3);
+      const startIndex = Math.max(0, Math.floor(smoothLine) - 2);
+      const endIndex = Math.min(lyrics.lines.length, Math.floor(smoothLine) + 4);
 
       for (let i = startIndex; i < endIndex; i++) {
         const line = lyrics.lines[i];
-        const offsetY = (i - currentLine) * lineHeight;
+        const distance = i - smoothLine; // valor fraccionario: ej 0.3, -0.7, etc.
+        const offsetY = distance * lineHeight;
         const y = centerY + offsetY;
 
-        let fontSize = 35;
-        let fillStyle = 'rgba(255, 255, 255, 0.4)';
-        let shadowBlur = 0;
+        const absDist = Math.abs(distance);
+        let fontSize: number;
+        let alpha: number;
 
-        if (i === currentLine) {
-          fontSize = 70;
-          fillStyle = '#ffffff';
-          shadowBlur = 25;
-          ctx.shadowColor = 'rgba(255, 255, 255, 0.9)';
-        } else if (i === currentLine + 1) {
-          fontSize = 50;
-          fillStyle = 'rgba(255, 255, 255, 0.8)';
-          shadowBlur = 10;
+        if (absDist < 1) {
+          // entre línea activa (70px) y vecina (50px)
+          fontSize = 70 - 20 * absDist;
+          alpha = 1 - 0.2 * absDist;
+        } else if (absDist < 2) {
+          // entre vecina (50px) y resto (35px)
+          const t = absDist - 1;
+          fontSize = 50 - 15 * t;
+          alpha = 0.8 - 0.4 * t;
+        } else {
+          fontSize = 35;
+          alpha = 0.4;
         }
 
+        fontSize = Math.round(fontSize);
+        const shadowBlur = absDist < 0.5 ? 25 * (1 - absDist * 2) : absDist < 1.5 ? 10 * (1.5 - absDist) : 0;
+
         ctx.font = `bold ${fontSize}px Arial`;
-        ctx.fillStyle = fillStyle;
-        ctx.shadowBlur = shadowBlur;
+        ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.15, Math.min(1, alpha))})`;
+        ctx.shadowBlur = Math.max(0, shadowBlur);
+        ctx.shadowColor = 'rgba(255, 255, 255, 0.9)';
 
         const maxWidth = canvas.width * 0.9;
         const textWidth = ctx.measureText(line.text).width;
@@ -412,6 +428,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
         ctx.fillText(line.text, canvas.width / 2, y, maxWidth);
         ctx.shadowBlur = 0;
       }
+      // ===== FIN mejora transición =====
 
       if (isRecording) {
         requestAnimationFrame(drawLyrics);
@@ -420,6 +437,7 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 
     backgroundColorRef.current = { r: 30, g: 30, b: 60 };
     targetColorRef.current = { r: 80, g: 80, b: 120 };
+    currentLinePosRef.current = currentLine; // evita el salto inicial al empezar a grabar
 
     drawLyrics();
   }, [isRecording, currentLine, lyrics, currentTheme]);
@@ -948,4 +966,3 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
 };
 
 export default Karaoke;
-
