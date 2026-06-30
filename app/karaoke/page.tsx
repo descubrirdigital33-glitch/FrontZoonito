@@ -372,45 +372,53 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       }
 
       // ===== TRANSICIÓN SUAVE DE LETRAS (mejora) =====
-      // En vez de saltar directo a `currentLine`, interpolamos hacia ella cada frame.
-      // El factor 0.12 controla la velocidad: más bajo = más lento/atenuado, más alto = más rápido.
-      currentLinePosRef.current += (currentLine - currentLinePosRef.current) * 0.12;
+      // Interpolamos hacia `currentLine` cada frame en vez de saltar de golpe,
+      // pero una vez que una línea "pasó", se corta rápido en vez de quedar estorbando.
+      currentLinePosRef.current += (currentLine - currentLinePosRef.current) * 0.18;
       const smoothLine = currentLinePosRef.current;
 
       const centerY = canvas.height / 2;
       const lineHeight = 100;
-      const startIndex = Math.max(0, Math.floor(smoothLine) - 2);
-      const endIndex = Math.min(lyrics.lines.length, Math.floor(smoothLine) + 4);
+      const startIndex = Math.max(0, Math.floor(smoothLine) - 1);
+      const endIndex = Math.min(lyrics.lines.length, Math.floor(smoothLine) + 3);
 
       for (let i = startIndex; i < endIndex; i++) {
         const line = lyrics.lines[i];
-        const distance = i - smoothLine; // valor fraccionario: ej 0.3, -0.7, etc.
-        const offsetY = distance * lineHeight;
-        const y = centerY + offsetY;
+        const distance = i - smoothLine; // valor fraccionario: ej 0.3, -0.4, etc.
 
-        const absDist = Math.abs(distance);
+        // Corte rápido: una vez que la línea quedó atrás, deja de dibujarse
+        // (ya no "estorba" mientras se canta la siguiente).
+        if (distance <= -0.6) continue;
+
         let fontSize: number;
         let alpha: number;
 
-        if (absDist < 1) {
-          // entre línea activa (70px) y vecina (50px)
-          fontSize = 70 - 20 * absDist;
-          alpha = 1 - 0.2 * absDist;
-        } else if (absDist < 2) {
-          // entre vecina (50px) y resto (35px)
-          const t = absDist - 1;
+        if (distance < 0) {
+          // Línea anterior saliendo rápido de escena (de -0.6 a 0)
+          const t = (distance + 0.6) / 0.6; // 0 -> 1
+          fontSize = 40 + 30 * t;
+          alpha = 0.5 * t;
+        } else if (distance < 1) {
+          // Línea activa: la más prominente
+          fontSize = 70 - 20 * distance;
+          alpha = 1 - 0.5 * distance;
+        } else if (distance < 2) {
+          // Vista previa de la próxima línea, discreta
+          const t = distance - 1;
           fontSize = 50 - 15 * t;
-          alpha = 0.8 - 0.4 * t;
+          alpha = 0.5 - 0.3 * t;
         } else {
-          fontSize = 35;
-          alpha = 0.4;
+          continue;
         }
 
+        const offsetY = distance * lineHeight;
+        const y = centerY + offsetY;
+
         fontSize = Math.round(fontSize);
-        const shadowBlur = absDist < 0.5 ? 25 * (1 - absDist * 2) : absDist < 1.5 ? 10 * (1.5 - absDist) : 0;
+        const shadowBlur = distance >= 0 && distance < 0.5 ? 25 * (1 - distance * 2) : 0;
 
         ctx.font = `bold ${fontSize}px Arial`;
-        ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.15, Math.min(1, alpha))})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0, Math.min(1, alpha))})`;
         ctx.shadowBlur = Math.max(0, shadowBlur);
         ctx.shadowColor = 'rgba(255, 255, 255, 0.9)';
 
