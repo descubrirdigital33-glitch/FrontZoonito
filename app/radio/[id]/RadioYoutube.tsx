@@ -18,7 +18,7 @@ interface YouTubeMusicPlayerProps {
   onAudioReady?: (audioElement: HTMLAudioElement) => void;
   musicVolume?: number;
   onMusicVolumeChange?: (volume: number) => void;
-  // ── NUEVO: vienen de useRadioStream, para transmitir el audio de YouTube a los oyentes ──
+  // ── vienen de useRadioStream, para transmitir el audio de YouTube a los oyentes ──
   isSharingSystemAudio?: boolean;
   systemAudioError?: string | null;
   onShareSystemAudio?: () => void | Promise<void>;
@@ -68,6 +68,7 @@ interface YouTubePlayer {
   pauseVideo: () => void;
   playVideo: () => void;
   stopVideo: () => void;
+  getPlayerState: () => number;
 }
 
 interface YouTubePlayerEvent {
@@ -95,10 +96,16 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [playlist, setPlaylist] = useState<YouTubeTrack[]>([]);
+  const [isStartingShare, setIsStartingShare] = useState(false);
 
   const playerInstanceRef = useRef<YouTubePlayer | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Guarda si el video estaba sonando justo antes de abrir el selector de
+  // "compartir pestaña", para poder reanudarlo automáticamente si el
+  // navegador lo pausó al perder el foco.
+  const wasPlayingBeforeShareRef = useRef(false);
 
   // Cargar API de YouTube
   useEffect(() => {
@@ -129,6 +136,29 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
       playerInstanceRef.current.setVolume(musicVolume * 100);
     }
   }, [musicVolume]);
+
+  // ── FIX: el navegador pausa el iframe de YouTube al perder el foco/visibilidad
+  // cuando se abre el selector nativo de "compartir pantalla/pestaña". Detectamos
+  // cuando la pestaña vuelve a estar visible y, si el video estaba sonando antes,
+  // lo reanudamos automáticamente.
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && wasPlayingBeforeShareRef.current) {
+        const player = playerInstanceRef.current;
+        if (player && typeof player.getPlayerState === 'function') {
+          const state = player.getPlayerState();
+          // 2 = PAUSED
+          if (state === 2) {
+            player.playVideo();
+          }
+        }
+        wasPlayingBeforeShareRef.current = false;
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   // Extraer ID de video de YouTube
   const extractVideoId = (url: string): string | null => {
@@ -232,6 +262,11 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
             setIsPlaying(true);
           } else if (event.data === window.YT.PlayerState.PAUSED) {
             setIsPlaying(false);
+            // Si se pausó mientras estábamos en medio de compartir pestaña,
+            // lo marcamos para reanudar apenas la pestaña vuelva a estar visible.
+            if (isStartingShare) {
+              wasPlayingBeforeShareRef.current = true;
+            }
           } else if (event.data === window.YT.PlayerState.ENDED) {
             handleTrackEnd();
           }
@@ -414,6 +449,33 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // ── Compartir pestaña: marca que el video estaba sonando, dispara el
+  // selector nativo, y al volver lo reanuda si se pausó solo ──
+  const handleShareClick = async () => {
+    if (!onShareSystemAudio) return;
+
+    wasPlayingBeforeShareRef.current = isPlaying;
+    setIsStartingShare(true);
+
+    try {
+      await onShareSystemAudio();
+    } finally {
+      setIsStartingShare(false);
+      // Por si el evento visibilitychange no llegó a dispararse a tiempo
+      // (algunos navegadores no pierden el foco si se queda en la misma ventana),
+      // hacemos un chequeo extra acá mismo.
+      setTimeout(() => {
+        const player = playerInstanceRef.current;
+        if (player && wasPlayingBeforeShareRef.current && typeof player.getPlayerState === 'function') {
+          if (player.getPlayerState() === 2) {
+            player.playVideo();
+          }
+          wasPlayingBeforeShareRef.current = false;
+        }
+      }, 600);
+    }
+  };
+
   if (!isOwner) {
     return null;
   }
@@ -451,12 +513,16 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
 
             {!isSharingSystemAudio ? (
               <button
-                onClick={() => onShareSystemAudio?.()}
-                disabled={!isLive || !onShareSystemAudio}
+                onClick={handleShareClick}
+                disabled={!isLive || !onShareSystemAudio || isStartingShare}
                 className="bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"
               >
-                <Share2 size={13} />
-                Compartir pestaña para transmitir
+                {isStartingShare ? (
+                  <Loader size={13} className="animate-spin" />
+                ) : (
+                  <Share2 size={13} />
+                )}
+                {isStartingShare ? 'Esperando selección...' : 'Compartir pestaña para transmitir'}
               </button>
             ) : (
               <button
@@ -473,7 +539,7 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
             )}
 
             <p className="text-white/40 text-[10px] mt-2">
-              💡 En el selector del navegador, elegí esta misma pestaña y tildá <strong>"Compartir audio de la pestaña"</strong>. Solo funciona en Chrome/Edge de escritorio. Primero iniciá la transmisión en vivo.
+              💡 En el selector del navegador, elegí <strong>esta misma pestaña</strong> y tildá <strong>"Compartir audio de la pestaña"</strong>. El video puede pausarse un instante mientras elegís — se reanuda solo. Solo funciona en Chrome/Edge de escritorio. Primero iniciá la transmisión en vivo.
             </p>
           </div>
         </div>
