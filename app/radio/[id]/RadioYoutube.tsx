@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, Volume2, VolumeX, Loader, Youtube, X, Plus, SkipForward } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Loader, Youtube, X, Plus, SkipForward, Share2, MonitorUp } from 'lucide-react';
 
 // Tipos
 interface YouTubeTrack {
@@ -18,6 +18,11 @@ interface YouTubeMusicPlayerProps {
   onAudioReady?: (audioElement: HTMLAudioElement) => void;
   musicVolume?: number;
   onMusicVolumeChange?: (volume: number) => void;
+  // ── NUEVO: vienen de useRadioStream, para transmitir el audio de YouTube a los oyentes ──
+  isSharingSystemAudio?: boolean;
+  systemAudioError?: string | null;
+  onShareSystemAudio?: () => void | Promise<void>;
+  onStopSystemAudio?: () => void;
 }
 
 // Declarar tipos globales de YouTube API
@@ -75,9 +80,12 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
   isOwner,
   isLive,
   onTrackChange,
-  onAudioReady,
   musicVolume = 1,
-  onMusicVolumeChange
+  onMusicVolumeChange,
+  isSharingSystemAudio = false,
+  systemAudioError = null,
+  onShareSystemAudio,
+  onStopSystemAudio,
 }) => {
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [currentTrack, setCurrentTrack] = useState<YouTubeTrack | null>(null);
@@ -87,12 +95,9 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [playlist, setPlaylist] = useState<YouTubeTrack[]>([]);
-  
+
   const playerInstanceRef = useRef<YouTubePlayer | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Cargar API de YouTube
@@ -117,13 +122,11 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
     };
   }, []);
 
-  // Actualizar volumen
+  // Actualizar volumen del player de YouTube (el audio del sistema compartido
+  // ya sincroniza su propio volumen del lado de useRadioStream)
   useEffect(() => {
     if (playerInstanceRef.current && typeof playerInstanceRef.current.setVolume === 'function') {
       playerInstanceRef.current.setVolume(musicVolume * 100);
-    }
-    if (gainNodeRef.current) {
-      gainNodeRef.current.gain.value = musicVolume;
     }
   }, [musicVolume]);
 
@@ -146,7 +149,7 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
     try {
       const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
       return response.ok;
-    } catch (error) {
+    } catch {
       return false;
     }
   };
@@ -155,7 +158,7 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
   const getVideoInfo = async (videoId: string): Promise<{ title: string; duration: number; thumbnail: string; embeddable: boolean } | null> => {
     try {
       const embeddable = await checkVideoEmbeddable(videoId);
-      
+
       if (embeddable) {
         try {
           const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
@@ -172,7 +175,7 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
           console.error('Error fetching oEmbed:', e);
         }
       }
-      
+
       return {
         title: 'YouTube Video',
         duration: 0,
@@ -218,11 +221,10 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
           console.log('YouTube player ready');
           setIsLoading(false);
           setIsPlaying(true);
-          
-          const duration = event.target.getDuration();
-          setDuration(duration);
 
-          setupAudioContext(event.target);
+          const dur = event.target.getDuration();
+          setDuration(dur);
+
           startTimeTracking();
         },
         onStateChange: (event: YouTubePlayerEvent) => {
@@ -236,7 +238,7 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
         },
         onError: (event: YouTubePlayerEvent) => {
           console.error('YouTube player error:', event);
-          
+
           const errorMessages: { [key: number]: string } = {
             2: 'Solicitud inválida - El video ID es incorrecto',
             5: 'Error del reproductor HTML5',
@@ -244,45 +246,18 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
             101: '🚫 Este video NO permite reproducción embebida',
             150: '🚫 Este video NO permite reproducción embebida'
           };
-          
+
           const errorMessage = errorMessages[event.data] || 'Error al cargar el video de YouTube';
           setError(errorMessage);
           setIsLoading(false);
           setIsPlaying(false);
-          
+
           if (event.data === 101 || event.data === 150) {
             setError('🚫 Este video tiene reproducción embebida deshabilitada. El propietario del video no permite reproducirlo en otros sitios. Intenta con otro video.');
           }
         }
       }
     });
-  };
-
-  // Configurar Audio Context
-  const setupAudioContext = (player: YouTubePlayer) => {
-    try {
-      if (!audioContextRef.current) {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioContextClass) {
-          audioContextRef.current = new AudioContextClass();
-        }
-      }
-
-      const audioContext = audioContextRef.current;
-      
-      if (audioContext) {
-        if (!gainNodeRef.current) {
-          gainNodeRef.current = audioContext.createGain();
-          gainNodeRef.current.gain.value = musicVolume;
-          gainNodeRef.current.connect(audioContext.destination);
-        }
-      }
-
-      console.log('Audio context configured');
-      
-    } catch (error) {
-      console.error('Error setting up audio context:', error);
-    }
   };
 
   // Iniciar seguimiento del tiempo
@@ -303,7 +278,7 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
   const handleTrackEnd = () => {
     setIsPlaying(false);
     setCurrentTime(0);
-    
+
     if (playlist.length > 0) {
       const currentIndex = playlist.findIndex(t => t.id === currentTrack?.id);
       const nextIndex = (currentIndex + 1) % playlist.length;
@@ -318,11 +293,11 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
   // Saltar al siguiente track
   const skipToNext = () => {
     if (playlist.length === 0) return;
-    
+
     const currentIndex = playlist.findIndex(t => t.id === currentTrack?.id);
     const nextIndex = (currentIndex + 1) % playlist.length;
     const nextTrack = playlist[nextIndex];
-    
+
     loadTrack(nextTrack.url);
   };
 
@@ -334,14 +309,14 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
   // Cargar track de YouTube
   const loadTrack = async (url: string) => {
     const videoId = extractVideoId(url);
-    
+
     if (!videoId) {
       setError('URL de YouTube inválida');
       return;
     }
 
     const videoInfo = await getVideoInfo(videoId);
-    
+
     if (!videoInfo) {
       setError('No se pudo obtener información del video');
       return;
@@ -361,7 +336,7 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
 
     setCurrentTrack(track);
     if (onTrackChange) onTrackChange(track);
-    
+
     createPlayer(videoId);
   };
 
@@ -373,14 +348,14 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
     }
 
     const videoId = extractVideoId(youtubeUrl);
-    
+
     if (!videoId) {
       setError('URL de YouTube inválida');
       return;
     }
 
     const videoInfo = await getVideoInfo(videoId);
-    
+
     if (!videoInfo) {
       setError('No se pudo obtener información del video');
       return;
@@ -423,7 +398,7 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
 
   const removeFromPlaylist = (trackId: string) => {
     setPlaylist(prev => prev.filter(t => t.id !== trackId));
-    
+
     if (currentTrack?.id === trackId) {
       setCurrentTrack(null);
       if (onTrackChange) onTrackChange(null);
@@ -456,20 +431,50 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
         </div>
       </div>
 
-      {/* Advertencia de limitación */}
-      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-2 sm:p-3 mb-3 sm:mb-4">
+      {/* ── Compartir pestaña: para que el audio llegue a los oyentes ── */}
+      <div className={`rounded-lg p-2.5 sm:p-3 mb-3 sm:mb-4 border ${
+        isSharingSystemAudio
+          ? 'bg-green-500/10 border-green-500/30'
+          : 'bg-red-500/10 border-red-500/30'
+      }`}>
         <div className="flex items-start gap-2">
-          <div className="text-yellow-400 flex-shrink-0 mt-0.5 text-sm sm:text-base">⚠️</div>
+          <MonitorUp size={16} className={`flex-shrink-0 mt-0.5 ${isSharingSystemAudio ? 'text-green-400' : 'text-red-400'}`} />
           <div className="flex-1 min-w-0">
-            <p className="text-yellow-300 text-xs font-semibold mb-1">
-              Limitaciones Importantes
+            <p className={`text-xs font-semibold mb-1 ${isSharingSystemAudio ? 'text-green-300' : 'text-red-300'}`}>
+              {isSharingSystemAudio ? '✅ Transmitiendo a los oyentes' : 'Los oyentes NO escuchan esta música todavía'}
             </p>
-            <ul className="text-yellow-200 text-[10px] sm:text-xs space-y-0.5 sm:space-y-1">
-              <li>• La música solo se escucha localmente en tu dispositivo</li>
-              <li>• Los oyentes NO escuchan esta música</li>
-              <li>• <strong>Algunos videos bloquean reproducción embebida</strong></li>
-              <li>• Para transmitir música real, usa el reproductor MP3</li>
-            </ul>
+            <p className="text-white/60 text-[10px] sm:text-xs mb-2">
+              {isSharingSystemAudio
+                ? 'El audio de esta pestaña se está mezclando con tu transmisión en vivo.'
+                : 'Para que los oyentes escuchen YouTube, compartí esta pestaña con audio.'}
+            </p>
+
+            {!isSharingSystemAudio ? (
+              <button
+                onClick={() => onShareSystemAudio?.()}
+                disabled={!isLive || !onShareSystemAudio}
+                className="bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"
+              >
+                <Share2 size={13} />
+                Compartir pestaña para transmitir
+              </button>
+            ) : (
+              <button
+                onClick={() => onStopSystemAudio?.()}
+                className="bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"
+              >
+                <X size={13} />
+                Dejar de compartir
+              </button>
+            )}
+
+            {systemAudioError && (
+              <p className="text-red-300 text-[10px] sm:text-xs mt-2 break-words">{systemAudioError}</p>
+            )}
+
+            <p className="text-white/40 text-[10px] mt-2">
+              💡 En el selector del navegador, elegí esta misma pestaña y tildá <strong>"Compartir audio de la pestaña"</strong>. Solo funciona en Chrome/Edge de escritorio. Primero iniciá la transmisión en vivo.
+            </p>
           </div>
         </div>
       </div>
@@ -509,8 +514,8 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
       {currentTrack && (
         <div className="bg-white/5 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4">
           <div className="flex items-center gap-2 sm:gap-4 mb-3">
-            <img 
-              src={currentTrack.thumbnail} 
+            <img
+              src={currentTrack.thumbnail}
               alt={currentTrack.title}
               className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover flex-shrink-0"
               onError={(e) => {
@@ -555,7 +560,7 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
 
           {/* Barra de progreso */}
           <div className="w-full bg-white/10 rounded-full h-1 mb-3">
-            <div 
+            <div
               className="bg-red-600 h-1 rounded-full transition-all"
               style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
             />
@@ -609,8 +614,8 @@ const RadioYoutube: React.FC<YouTubeMusicPlayerProps> = ({
                 <div className="text-white/60 text-xs sm:text-sm font-mono w-4 sm:w-6 flex-shrink-0 text-center">
                   {index + 1}
                 </div>
-                <img 
-                  src={track.thumbnail} 
+                <img
+                  src={track.thumbnail}
                   alt={track.title}
                   className="w-10 h-10 sm:w-12 sm:h-12 rounded object-cover flex-shrink-0"
                   onError={(e) => {
