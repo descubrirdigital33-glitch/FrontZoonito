@@ -2,12 +2,6 @@
 import React, { useState, useRef, useContext, useEffect } from 'react';
 import RadioYoutube from './RadioYoutube';
 import { useParams } from 'next/navigation';
-import {
-    Pause, Volume2, VolumeX, Users, Send, Trash2, GripVertical,
-    Shield, Music, Share2, Settings, User, Check, Play, X, Crown,
-    Headphones, Mic, Upload, Edit2, Heart, SkipForward, Radio,
-    Zap, Plus, MicOff, Ban, RadioTower
-} from 'lucide-react';
 
 import {
     useRadioSystem, api,
@@ -22,6 +16,33 @@ import { useRadioStream } from '../../hooks/useRadioStream';
 import MusicaPlayer from '../../MusicaPlayer/page';
 
 import './styles/RadioSystem.css';
+
+// ============================================================
+// Icon — helper para íconos emoji (reemplaza lucide-react)
+// ============================================================
+interface IconProps {
+    children: React.ReactNode;
+    size?: number;
+    color?: string;
+    style?: React.CSSProperties;
+}
+
+const Icon: React.FC<IconProps> = ({ children, size = 18, color, style }) => (
+    <span
+        style={{
+            fontSize: size,
+            lineHeight: 1,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color,
+            flexShrink: 0,
+            ...style,
+        }}
+    >
+        {children}
+    </span>
+);
 
 // ============================================================
 // ProfileModal
@@ -77,8 +98,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
         <div className="rs-modal-overlay">
             <div className="rs-modal">
                 <div className="rs-modal__header">
-                    <h2 className="rs-modal__title"><User size={24} />Mi Perfil</h2>
-                    <button className="rs-modal__close" onClick={onClose}><X size={24} /></button>
+                    <h2 className="rs-modal__title"><Icon size={24}>👤</Icon>Mi Perfil</h2>
+                    <button className="rs-modal__close" onClick={onClose}><Icon size={24}>✕</Icon></button>
                 </div>
 
                 <div className="rs-modal__body">
@@ -87,11 +108,11 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
                             <div className="rs-avatar__circle">
                                 {previewUrl
                                     ? <img src={previewUrl} alt="Avatar" />
-                                    : <User size={40} color="#fff" />}
+                                    : <Icon size={40} color="#fff">👤</Icon>}
                             </div>
                             {isOwner && (
                                 <label className="rs-avatar__upload">
-                                    <Upload size={16} color="#fff" />
+                                    <Icon size={16} color="#fff">⬆️</Icon>
                                     <input
                                         type="file" accept="image/*"
                                         className="rs-avatar__input"
@@ -130,8 +151,8 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
                     <div className="rs-plan-box">
                         <div className="rs-plan-box__header">
                             {user.isPremium
-                                ? <Crown size={20} color="#facc15" />
-                                : <Headphones size={20} color="rgba(255,255,255,0.6)" />}
+                                ? <Icon size={20} color="#facc15">👑</Icon>
+                                : <Icon size={20} color="rgba(255,255,255,0.6)">🎧</Icon>}
                             <span className="rs-plan-box__title">
                                 {user.isPremium ? 'Plan Premium' : 'Plan Gratuito'}
                             </span>
@@ -154,7 +175,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({
                         onClick={handleSave}
                         disabled={isSaving || !name.trim()}
                     >
-                        {isSaving ? 'Guardando...' : <><Check size={18} />Guardar</>}
+                        {isSaving ? 'Guardando...' : <><Icon size={18}>✓</Icon>Guardar</>}
                     </button>
                 </div>
             </div>
@@ -196,8 +217,8 @@ const RadioSettingsModal: React.FC<RadioSettingsModalProps> = ({
         <div className="rs-modal-overlay">
             <div className="rs-modal">
                 <div className="rs-modal__header">
-                    <h2 className="rs-modal__title"><Radio size={24} />Configuración de Radio</h2>
-                    <button className="rs-modal__close" onClick={onClose}><X size={24} /></button>
+                    <h2 className="rs-modal__title"><Icon size={24}>📻</Icon>Configuración de Radio</h2>
+                    <button className="rs-modal__close" onClick={onClose}><Icon size={24}>✕</Icon></button>
                 </div>
 
                 <div className="rs-modal__body">
@@ -205,7 +226,7 @@ const RadioSettingsModal: React.FC<RadioSettingsModalProps> = ({
                         <div className="rs-logo-square">
                             {displayLogo
                                 ? <img src={displayLogo} alt="Logo" />
-                                : <Radio size={40} color="#fff" />}
+                                : <Icon size={40} color="#fff">📻</Icon>}
                         </div>
                     </div>
 
@@ -232,7 +253,7 @@ const RadioSettingsModal: React.FC<RadioSettingsModalProps> = ({
 
                 <div className="rs-modal__footer">
                     <button className="rs-btn rs-btn--red" onClick={() => setShowDeleteConfirm(true)}>
-                        <Trash2 size={18} />
+                        <Icon size={18}>🗑️</Icon>
                     </button>
                     <button className="rs-btn rs-btn--ghost" onClick={onClose}>Cancelar</button>
                     <button
@@ -295,8 +316,8 @@ const ShareModal: React.FC<ShareModalProps> = ({ radio, onClose }) => {
         <div className="rs-modal-overlay">
             <div className="rs-modal rs-share-modal">
                 <div className="rs-modal__header">
-                    <h2 className="rs-modal__title"><Share2 size={24} />Compartir Radio</h2>
-                    <button className="rs-modal__close" onClick={onClose}><X size={24} /></button>
+                    <h2 className="rs-modal__title"><Icon size={24}>🔗</Icon>Compartir Radio</h2>
+                    <button className="rs-modal__close" onClick={onClose}><Icon size={24}>✕</Icon></button>
                 </div>
 
                 <div className="rs-modal__body">
@@ -305,7 +326,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ radio, onClose }) => {
                         <div className="rs-share-row">
                             <input className="rs-share-input" type="text" value={shareUrl} readOnly />
                             <button className="rs-share-copy" onClick={() => handleCopy(shareUrl)}>
-                                {copied ? <Check size={18} /> : 'Copiar'}
+                                {copied ? <Icon size={18}>✓</Icon> : 'Copiar'}
                             </button>
                         </div>
                     </div>
@@ -343,7 +364,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ radio, onClose }) => {
 
 // ============================================================
 // Player — modo dueño intacto + modo oyente estéreo de auto
-// (íconos react-icons reemplazados por emojis)
+// (íconos 100% emoji, sin lucide-react)
 // ============================================================
 interface PlayerProps {
     radio: RadioStation;
@@ -484,12 +505,12 @@ const Ticker: React.FC<{ text: string; paused?: boolean }> = ({ text, paused }) 
     );
 };
 
-// ── Ícono de volumen dinámico según nivel / mute (modo oyente) — EMOJI ──
+// ── Ícono de volumen dinámico según nivel / mute (modo oyente) ──
 const getVolumeIcon = (volume: number, muted: boolean) => {
-    if (muted || volume === 0) return <span style={{ fontSize: 15, lineHeight: 1 }}>🔇</span>;
-    if (volume < 0.34) return <span style={{ fontSize: 15, lineHeight: 1 }}>🔈</span>;
-    if (volume < 0.67) return <span style={{ fontSize: 15, lineHeight: 1 }}>🔉</span>;
-    return <span style={{ fontSize: 15, lineHeight: 1 }}>🔊</span>;
+    if (muted || volume === 0) return <Icon size={15}>🔇</Icon>;
+    if (volume < 0.34) return <Icon size={15}>🔈</Icon>;
+    if (volume < 0.67) return <Icon size={15}>🔉</Icon>;
+    return <Icon size={15}>🔊</Icon>;
 };
 
 // ── Control de volumen del oyente (popup, modo oyente) ───────
@@ -619,12 +640,12 @@ const Player: React.FC<PlayerProps> = ({
                                 {isLoadingStream
                                     ? <div className="rs-spinner" />
                                     : isPlaying
-                                        ? <Pause size={28} />
+                                        ? <Icon size={28}>⏸️</Icon>
                                         : (
                                             <div className={`rs-play-btn__inner ${isOwner ? 'rs-play-btn__inner--owner' : 'rs-play-btn__inner--listener'}`}>
                                                 {isOwner
-                                                    ? <RadioTower size={22} color="#fff" />
-                                                    : <Play size={22} color="#fff" style={{ marginLeft: 3 }} />}
+                                                    ? <Icon size={22} color="#fff">📡</Icon>
+                                                    : <Icon size={22} color="#fff" style={{ marginLeft: 3 }}>▶️</Icon>}
                                             </div>
                                         )}
                             </button>
@@ -635,8 +656,8 @@ const Player: React.FC<PlayerProps> = ({
                                     onClick={onToggleMic}
                                 >
                                     {isMicMuted
-                                        ? <MicOff size={22} color="#f87171" />
-                                        : <Mic size={22} color="#86efac" />}
+                                        ? <Icon size={22} color="#f87171">🔇</Icon>
+                                        : <Icon size={22} color="#86efac">🎤</Icon>}
                                 </button>
                             )}
 
@@ -645,7 +666,7 @@ const Player: React.FC<PlayerProps> = ({
                                 {isOwner && (
                                     <>
                                         <div className="rs-radio-logo__upload">
-                                            <Upload size={24} />
+                                            <Icon size={24}>⬆️</Icon>
                                         </div>
                                         <input
                                             type="file" accept="image/*"
@@ -663,20 +684,20 @@ const Player: React.FC<PlayerProps> = ({
                         <div className="rs-player__info">
                             <div className="rs-player__badges">
                                 {radio.isLive ? (
-                                    <span className="rs-badge rs-badge--live"><Mic size={10} />EN VIVO</span>
+                                    <span className="rs-badge rs-badge--live"><Icon size={10}>🎤</Icon>EN VIVO</span>
                                 ) : (
-                                    <span className="rs-badge rs-badge--offline"><Radio size={10} />OFF LINE</span>
+                                    <span className="rs-badge rs-badge--offline"><Icon size={10}>📻</Icon>OFF LINE</span>
                                 )}
                                 {isOwner && isPlaying && radio.isLive && (
                                     <>
-                                        <span className="rs-badge rs-badge--tx"><Mic size={10} />TRANSMITIENDO</span>
+                                        <span className="rs-badge rs-badge--tx"><Icon size={10}>🎤</Icon>TRANSMITIENDO</span>
                                         {isMicMuted && (
-                                            <span className="rs-badge rs-badge--muted"><MicOff size={10} />MIC MUTEADO</span>
+                                            <span className="rs-badge rs-badge--muted"><Icon size={10}>🔇</Icon>MIC MUTEADO</span>
                                         )}
                                     </>
                                 )}
                                 {!isOwner && isPlaying && !streamError && (
-                                    <span className="rs-badge rs-badge--listen"><Volume2 size={10} />ESCUCHANDO</span>
+                                    <span className="rs-badge rs-badge--listen"><Icon size={10}>🔊</Icon>ESCUCHANDO</span>
                                 )}
                             </div>
                             <h3 className="rs-player__name">{radio.name}</h3>
@@ -689,7 +710,7 @@ const Player: React.FC<PlayerProps> = ({
                             )}
                             {streamError && (
                                 <p className="rs-player__error">
-                                    <X size={12} style={{ flexShrink: 0 }} />{streamError}
+                                    <Icon size={12} style={{ flexShrink: 0 }}>✕</Icon>{streamError}
                                 </p>
                             )}
                         </div>
@@ -699,29 +720,29 @@ const Player: React.FC<PlayerProps> = ({
                                 className={`rs-like-btn ${hasLiked ? 'rs-like-btn--on' : 'rs-like-btn--off'}`}
                                 onClick={onToggleLike}
                             >
-                                <Heart size={18} fill={hasLiked ? 'currentColor' : 'none'} />
+                                <Icon size={18}>{hasLiked ? '❤️' : '🤍'}</Icon>
                                 <span>{radio.likes}</span>
                             </button>
 
                             <div className="rs-listeners">
-                                <Users size={18} /><span>{listenerCount}</span>
+                                <Icon size={18}>👥</Icon><span>{listenerCount}</span>
                             </div>
 
                             <button className="rs-icon-btn" onClick={onShare} title="Compartir">
-                                <Share2 size={20} />
+                                <Icon size={20}>🔗</Icon>
                             </button>
 
                             {isOwner && (
                                 <>
                                     <button className="rs-icon-btn" onClick={onEditRadio} title="Configurar radio">
-                                        <Settings size={20} />
+                                        <Icon size={20}>⚙️</Icon>
                                     </button>
                                     {canTransmit && (
                                         <button
                                             className={`rs-live-btn ${radio.isLive ? 'rs-live-btn--on' : 'rs-live-btn--off'}`}
                                             onClick={onToggleLive}
                                         >
-                                            <Mic size={16} style={{ display: 'inline', marginRight: 4 }} />
+                                            <Icon size={16} style={{ display: 'inline', marginRight: 4 }}>🎤</Icon>
                                             {radio.isLive ? 'Detener' : 'Iniciar'}
                                         </button>
                                     )}
@@ -737,7 +758,7 @@ const Player: React.FC<PlayerProps> = ({
                                 onClick={() => setShowVolumeControls(!showVolumeControls)}
                             >
                                 <span className="rs-volume-panel__toggle-label">
-                                    <Volume2 size={18} />Controles de Volumen
+                                    <Icon size={18}>🔊</Icon>Controles de Volumen
                                 </span>
                                 <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>
                                     {showVolumeControls ? '▼' : '▶'}
@@ -748,7 +769,7 @@ const Player: React.FC<PlayerProps> = ({
                                 <div className="rs-volume-controls">
                                     <div className="rs-volume-row">
                                         <div className="rs-volume-label-row">
-                                            <span className="rs-volume-label"><Mic size={16} />Volumen del Micrófono</span>
+                                            <span className="rs-volume-label"><Icon size={16}>🎤</Icon>Volumen del Micrófono</span>
                                             <span className="rs-volume-value rs-volume-value--mic">
                                                 {Math.round(micVolume * 100)}%
                                             </span>
@@ -766,7 +787,7 @@ const Player: React.FC<PlayerProps> = ({
 
                                     <div className="rs-volume-row">
                                         <div className="rs-volume-label-row">
-                                            <span className="rs-volume-label"><Music size={16} />Volumen de la Música</span>
+                                            <span className="rs-volume-label"><Icon size={16}>🎵</Icon>Volumen de la Música</span>
                                             <span className="rs-volume-value rs-volume-value--music">
                                                 {Math.round(musicVolume * 100)}%
                                             </span>
@@ -820,7 +841,7 @@ const Player: React.FC<PlayerProps> = ({
 
                     {!canTransmit && !isOwner && (
                         <div className="rs-alert rs-alert--premium">
-                            <Shield size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+                            <Icon size={18} style={{ marginTop: 2 }}>🛡️</Icon>
                             <p style={{ margin: 0 }}>
                                 Estás en modo oyente.{' '}
                                 <button>Actualiza a Premium</button>{' '}
@@ -831,7 +852,7 @@ const Player: React.FC<PlayerProps> = ({
 
                     {!radio.isLive && (
                         <div className="rs-alert rs-alert--offline">
-                            <Radio size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+                            <Icon size={18} style={{ marginTop: 2 }}>📻</Icon>
                             <p style={{ margin: 0 }}>
                                 {isOwner && canTransmit
                                     ? 'Haz clic en "Iniciar" para comenzar a transmitir en vivo con tu micrófono'
@@ -845,7 +866,7 @@ const Player: React.FC<PlayerProps> = ({
     }
 
     // ============================================================
-    // MODO OYENTE — Estilo estéreo de auto (emojis en vez de react-icons)
+    // MODO OYENTE — Estilo estéreo de auto (100% emoji)
     // ============================================================
     return (
         <div className="rs-car-stereo" role="region" aria-label="Reproductor de radio">
@@ -889,13 +910,11 @@ const Player: React.FC<PlayerProps> = ({
                         aria-label={hasLiked ? 'Quitar like' : 'Dar like'}
                         title={`${radio.likes} likes`}
                     >
-                        <span style={{ fontSize: 15, lineHeight: 1 }}>
-                            {hasLiked ? '❤️' : '🤍'}
-                        </span>
+                        <Icon size={15}>{hasLiked ? '❤️' : '🤍'}</Icon>
                     </button>
 
                     <div className="rs-stereo__listeners" title="Oyentes">
-                        <span style={{ fontSize: 12, lineHeight: 1 }}>👥</span>
+                        <Icon size={12}>👥</Icon>
                         <span>{listenerCount}</span>
                     </div>
                 </div>
@@ -909,9 +928,9 @@ const Player: React.FC<PlayerProps> = ({
                     {isLoadingStream ? (
                         <div className="rs-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
                     ) : isPlaying ? (
-                        <span style={{ fontSize: 22, lineHeight: 1 }}>⏸️</span>
+                        <Icon size={22}>⏸️</Icon>
                     ) : (
-                        <span style={{ fontSize: 22, lineHeight: 1, marginLeft: 2 }}>▶️</span>
+                        <Icon size={22} style={{ marginLeft: 2 }}>▶️</Icon>
                     )}
                 </button>
 
@@ -929,7 +948,7 @@ const Player: React.FC<PlayerProps> = ({
                         onClick={onShare}
                         aria-label="Compartir"
                     >
-                        <span style={{ fontSize: 15, lineHeight: 1 }}>🔗</span>
+                        <Icon size={15}>🔗</Icon>
                     </button>
 
                     {streamError && (
@@ -939,7 +958,7 @@ const Player: React.FC<PlayerProps> = ({
                             title={streamError}
                             aria-label="Error de conexión"
                         >
-                            <span style={{ fontSize: 15, lineHeight: 1 }}>✕</span>
+                            <Icon size={15}>✕</Icon>
                         </button>
                     )}
                 </div>
@@ -960,7 +979,7 @@ const Player: React.FC<PlayerProps> = ({
             ) : (
                 <div className="rs-stereo__offline">
                     <div className="rs-stereo__offline-icon">
-                        <span style={{ fontSize: 32, lineHeight: 1 }}>📻</span>
+                        <Icon size={32}>📻</Icon>
                     </div>
                     <p className="rs-stereo__offline-title">Radio fuera de línea</p>
                     <p className="rs-stereo__offline-sub">
@@ -1020,7 +1039,7 @@ const Chat: React.FC<ChatProps> = ({
         <div className="rs-chat">
             <div className="rs-chat__header">
                 <h2 className="rs-chat__title">
-                    <Users size={24} />
+                    <Icon size={24}>👥</Icon>
                     <span className="rs-chat__title-text--sm">Chat</span>
                     <span className="rs-chat__title-text--lg">Chat en Vivo</span>
                 </h2>
@@ -1034,8 +1053,8 @@ const Chat: React.FC<ChatProps> = ({
                             onClick={onToggleFreeze}
                         >
                             {isFrozen
-                                ? <><Ban size={14} /><span className="rs-freeze-btn__label">Congelado</span></>
-                                : <><Shield size={14} /><span className="rs-freeze-btn__label">Activo</span></>}
+                                ? <><Icon size={14}>🚫</Icon><span className="rs-freeze-btn__label">Congelado</span></>
+                                : <><Icon size={14}>🛡️</Icon><span className="rs-freeze-btn__label">Activo</span></>}
                         </button>
                     )}
                 </div>
@@ -1043,7 +1062,7 @@ const Chat: React.FC<ChatProps> = ({
 
             {isFrozen && (
                 <div className="rs-chat__frozen-notice">
-                    <Ban size={16} style={{ flexShrink: 0 }} />
+                    <Icon size={16}>🚫</Icon>
                     {canModerate
                         ? 'Chat congelado. Solo tú puedes escribir.'
                         : 'El chat está congelado por el moderador.'}
@@ -1053,7 +1072,7 @@ const Chat: React.FC<ChatProps> = ({
             <div className="rs-chat__messages">
                 {messages.length === 0 ? (
                     <div className="rs-chat__empty">
-                        <Users size={48} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
+                        <Icon size={48} style={{ margin: '0 auto 8px', opacity: 0.5 }}>👥</Icon>
                         <p>No hay mensajes aún</p>
                         <p style={{ fontSize: '0.75rem', marginTop: 4 }}>Sé el primero en chatear</p>
                     </div>
@@ -1070,7 +1089,7 @@ const Chat: React.FC<ChatProps> = ({
                                 </span>
                                 {canModerate && (
                                     <button className="rs-msg__del" onClick={() => confirmDelete(msg._id)} title="Eliminar mensaje">
-                                        <Trash2 size={14} />
+                                        <Icon size={14}>🗑️</Icon>
                                     </button>
                                 )}
                             </div>
@@ -1096,7 +1115,7 @@ const Chat: React.FC<ChatProps> = ({
                     onClick={handleSend}
                     disabled={(isFrozen && !canModerate) || !inputValue.trim()}
                 >
-                    <Send size={18} />
+                    <Icon size={18}>📤</Icon>
                 </button>
             </div>
         </div>
@@ -1132,7 +1151,7 @@ const GuestControl: React.FC<GuestControlProps> = ({ radioId, guestCode, onGener
 
     return (
         <div className="rs-guest">
-            <h2 className="rs-guest__title"><Mic size={24} />Control de Invitados</h2>
+            <h2 className="rs-guest__title"><Icon size={24}>🎤</Icon>Control de Invitados</h2>
             <div className="rs-guest__box">
                 <p className="rs-guest__desc">
                     Genera un código para que otros puedan conectarse como invitados y hablar en tu radio.
@@ -1154,7 +1173,7 @@ const GuestControl: React.FC<GuestControlProps> = ({ radioId, guestCode, onGener
                                 {showCode ? '👁️' : '👁️‍🗨️'}
                             </button>
                             <button className="rs-guest__copy" onClick={handleCopy}>
-                                {copied ? <Check size={18} /> : 'Copiar'}
+                                {copied ? <Icon size={18}>✓</Icon> : 'Copiar'}
                             </button>
                         </div>
                         <p className="rs-guest__hint">
@@ -1351,7 +1370,7 @@ const RadioSystem: React.FC = () => {
                         <div className="rs-header__title-wrap">
                             <h1 className="rs-header__title">
                                 <div className="rs-header__title-icon">
-                                    <Music size={24} color="#fff" />
+                                    <Icon size={24} color="#fff">🎵</Icon>
                                 </div>
                                 <span className="rs-header__title-text">{displayRadio.name}</span>
                             </h1>
@@ -1363,13 +1382,13 @@ const RadioSystem: React.FC = () => {
                                 <div className="rs-profile-avatar">
                                     {user.avatar
                                         ? <img src={user.avatar} alt={user.name} />
-                                        : <User size={18} color="#fff" />}
+                                        : <Icon size={18} color="#fff">👤</Icon>}
                                 </div>
                                 <div className="rs-profile-info">
                                     <p className="rs-profile-name">{user.name}</p>
                                     <p className="rs-profile-plan">{user.isPremium ? '👑 Premium' : '🎧 Gratis'}</p>
                                 </div>
-                                <User size={18} color="rgba(255,255,255,0.6)" style={{ flexShrink: 0 }} />
+                                <Icon size={18} color="rgba(255,255,255,0.6)">👤</Icon>
                             </button>
                         )}
                     </header>
