@@ -16,7 +16,6 @@ interface UseRadioStreamProps {
 interface WindowWithAudioContext extends Window {
   webkitAudioContext?: typeof AudioContext;
 }
-
 // Lo que viaja por el socket cuando cambia la canción / el estado de reproducción
 export interface NowPlayingData {
   id: string | null;
