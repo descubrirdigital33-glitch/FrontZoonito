@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { setupAudioMixer, cleanupAudioMixer } from '../components/audioMixerUtils';
 
@@ -17,6 +17,16 @@ interface WindowWithAudioContext extends Window {
   webkitAudioContext?: typeof AudioContext;
 }
 
+// Lo que viaja por el socket cuando cambia la canción / el estado de reproducción
+export interface NowPlayingData {
+  id: string | null;
+  titulo: string | null;
+  artista: string | null;
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+}
+
 export const useRadioStream = ({ 
   sessionId, 
   isOwner, 
@@ -28,6 +38,9 @@ export const useRadioStream = ({
   const [isLoadingStream, setIsLoadingStream] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [listenerCount, setListenerCount] = useState(0);
+
+  // NUEVO: estado de "qué se está escuchando ahora", lo reciben los oyentes (no-owner)
+  const [nowPlaying, setNowPlaying] = useState<NowPlayingData | null>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -62,16 +75,31 @@ export const useRadioStream = ({
 
     socket.on('listener-count', (count: number) => setListenerCount(count));
 
+    // NUEVO: el oyente recibe la info de "now playing" que emite el dueño
+    socket.on('now-playing', (data: NowPlayingData) => {
+      setNowPlaying(data);
+    });
+
     socket.on('connect_error', (error: Error) => {
       console.error('❌ Error de conexión:', error);
       setStreamError('Error al conectar con el servidor');
     });
 
     return () => {
+      socket.off('now-playing');
       socket.emit('leave-radio', { sessionId });
       socket.disconnect();
     };
   }, [sessionId]);
+
+  // NUEVO: función para que el dueño emita el "now playing" por el socket.
+  // La expone el hook para conectarla con onNowPlayingChange del MusicaPlayer.
+  const emitNowPlaying = useCallback((data: NowPlayingData) => {
+    if (!isOwner) return; // solo el dueño emite, los oyentes solo reciben
+    socketRef.current?.emit('now-playing', { sessionId, ...data });
+    // Reflejamos también localmente del lado del dueño, por si quiere mostrar su propio estado
+    setNowPlaying(data);
+  }, [isOwner, sessionId]);
 
   // 🎚️ Actualizar volumen del micrófono
   useEffect(() => {
@@ -229,5 +257,5 @@ export const useRadioStream = ({
     };
   }, [isOwner, isPlaying, sessionId]);
 
-  return { isLoadingStream, streamError, listenerCount };
+  return { isLoadingStream, streamError, listenerCount, nowPlaying, emitNowPlaying };
 };
