@@ -9,7 +9,6 @@ interface SetupAudioMixerParams {
   musicVolume: number;
 }
 
-
 interface AudioMixerResult {
   mediaStream: MediaStream;
   mixer: GainNode;
