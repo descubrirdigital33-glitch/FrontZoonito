@@ -9,14 +9,6 @@ import {
     Zap, Plus, MicOff, Ban, RadioTower
 } from 'lucide-react';
 
-// ── Iconos del modo OYENTE (estéreo de auto) — react-icons ───
-import {
-    IoPlay, IoPause, IoHeart, IoHeartOutline, IoShareSocialOutline,
-    IoClose, IoRadioOutline, IoPeopleOutline,
-    IoVolumeHighOutline, IoVolumeMediumOutline, IoVolumeLowOutline,
-    IoVolumeMuteOutline, IoVolumeOffOutline
-} from 'react-icons/io5';
-
 import {
     useRadioSystem, api,
     type Track, type User as UserType,
@@ -351,6 +343,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ radio, onClose }) => {
 
 // ============================================================
 // Player — modo dueño intacto + modo oyente estéreo de auto
+// (íconos react-icons reemplazados por emojis)
 // ============================================================
 interface PlayerProps {
     radio: RadioStation;
@@ -373,12 +366,10 @@ interface PlayerProps {
     canTransmit: boolean;
     user?: UserType;
     owner?: UserType;
-    // Vienen del hook useRadioStream, llamado UNA sola vez en RadioSystem
     isLoadingStream: boolean;
     streamError: string | null;
     listenerCount: number;
-    // ── NUEVO: control de volumen del OYENTE (subir/bajar/mutear) ──
-    listenerVolume: number;          // 0 a 1
+    listenerVolume: number;
     isListenerMuted: boolean;
     onListenerVolumeChange: (v: number) => void;
     onToggleListenerMute: () => void;
@@ -493,12 +484,12 @@ const Ticker: React.FC<{ text: string; paused?: boolean }> = ({ text, paused }) 
     );
 };
 
-// ── Ícono de volumen dinámico según nivel / mute (modo oyente) ──
+// ── Ícono de volumen dinámico según nivel / mute (modo oyente) — EMOJI ──
 const getVolumeIcon = (volume: number, muted: boolean) => {
-    if (muted || volume === 0) return <IoVolumeMuteOutline size={15} />;
-    if (volume < 0.34) return <IoVolumeOffOutline size={15} />;
-    if (volume < 0.67) return <IoVolumeLowOutline size={15} />;
-    return <IoVolumeHighOutline size={15} />;
+    if (muted || volume === 0) return <span style={{ fontSize: 15, lineHeight: 1 }}>🔇</span>;
+    if (volume < 0.34) return <span style={{ fontSize: 15, lineHeight: 1 }}>🔈</span>;
+    if (volume < 0.67) return <span style={{ fontSize: 15, lineHeight: 1 }}>🔉</span>;
+    return <span style={{ fontSize: 15, lineHeight: 1 }}>🔊</span>;
 };
 
 // ── Control de volumen del oyente (popup, modo oyente) ───────
@@ -520,7 +511,6 @@ const VolumeControl: React.FC<VolumeControlProps> = ({
     const handleRangeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const v = parseFloat(e.target.value);
         onVolumeChange(v);
-        // si estaba muteado y mueve el slider por encima de 0, desmutea
         if (muted && v > 0) onToggleMute();
     };
 
@@ -605,8 +595,6 @@ const Player: React.FC<PlayerProps> = ({
     const [showVolumeControls, setShowVolumeControls] = useState(false);
     const displayLogo = radio.logo || owner?.avatar || '/assets/zoonito.jpg';
 
-    // Texto del ticker para el modo oyente: usa el track que viene en vivo desde el backend
-    // (vía socket "now-playing"), no solo lo que viene de tracks subidos manualmente
     const tickerText = currentTrack
         ? `${currentTrack.title}  —  ${currentTrack.artist}`
         : radio.isLive
@@ -620,12 +608,9 @@ const Player: React.FC<PlayerProps> = ({
         return (
             <div className="rs-player">
                 <div className="rs-player__body">
-                    {/* Fila principal */}
                     <div className="rs-player__row">
 
-                        {/* Controles izquierda */}
                         <div className="rs-player__controls">
-                            {/* Play/Pause */}
                             <button
                                 className="rs-play-btn"
                                 onClick={onPlayPause}
@@ -644,7 +629,6 @@ const Player: React.FC<PlayerProps> = ({
                                         )}
                             </button>
 
-                            {/* Mic toggle */}
                             {isOwner && canTransmit && radio.isLive && (
                                 <button
                                     className={`rs-mic-btn ${isMicMuted ? 'rs-mic-btn--muted' : 'rs-mic-btn--active'}`}
@@ -656,7 +640,6 @@ const Player: React.FC<PlayerProps> = ({
                                 </button>
                             )}
 
-                            {/* Logo */}
                             <div className="rs-radio-logo">
                                 <img src={displayLogo} alt={radio.name} />
                                 {isOwner && (
@@ -677,7 +660,6 @@ const Player: React.FC<PlayerProps> = ({
                             </div>
                         </div>
 
-                        {/* Info */}
                         <div className="rs-player__info">
                             <div className="rs-player__badges">
                                 {radio.isLive ? (
@@ -712,7 +694,6 @@ const Player: React.FC<PlayerProps> = ({
                             )}
                         </div>
 
-                        {/* Acciones */}
                         <div className="rs-player__actions">
                             <button
                                 className={`rs-like-btn ${hasLiked ? 'rs-like-btn--on' : 'rs-like-btn--off'}`}
@@ -749,7 +730,6 @@ const Player: React.FC<PlayerProps> = ({
                         </div>
                     </div>
 
-                    {/* Panel de volumen */}
                     {isOwner && canTransmit && radio.isLive && (
                         <div className="rs-volume-panel">
                             <button
@@ -766,7 +746,6 @@ const Player: React.FC<PlayerProps> = ({
 
                             {showVolumeControls && (
                                 <div className="rs-volume-controls">
-                                    {/* Mic */}
                                     <div className="rs-volume-row">
                                         <div className="rs-volume-label-row">
                                             <span className="rs-volume-label"><Mic size={16} />Volumen del Micrófono</span>
@@ -785,7 +764,6 @@ const Player: React.FC<PlayerProps> = ({
                                         <div className="rs-range-hints"><span>Silencio</span><span>Máximo</span></div>
                                     </div>
 
-                                    {/* Music */}
                                     <div className="rs-volume-row">
                                         <div className="rs-volume-label-row">
                                             <span className="rs-volume-label"><Music size={16} />Volumen de la Música</span>
@@ -829,7 +807,6 @@ const Player: React.FC<PlayerProps> = ({
                         </div>
                     )}
 
-                    {/* Estado del micrófono */}
                     {isOwner && isPlaying && radio.isLive && (
                         <div className={`rs-alert ${isMicMuted ? 'rs-alert--mic-muted' : 'rs-alert--mic-ok'}`}>
                             <div className="rs-alert__dot" />
@@ -868,16 +845,13 @@ const Player: React.FC<PlayerProps> = ({
     }
 
     // ============================================================
-    // MODO OYENTE — Estilo estéreo de auto (react-icons + volumen)
+    // MODO OYENTE — Estilo estéreo de auto (emojis en vez de react-icons)
     // ============================================================
     return (
         <div className="rs-car-stereo" role="region" aria-label="Reproductor de radio">
-            {/* Raya superior */}
             <div className="rs-stereo__topbar" />
 
-            {/* Display LCD */}
             <div className="rs-stereo__display">
-                {/* Fila superior: badge + nombre + señal */}
                 <div className="rs-stereo__display-top">
                     <span className={`rs-stereo__band${radio.isLive ? ' rs-stereo__band--live' : ''}`}>
                         {radio.isLive ? 'LIVE' : 'OFF'}
@@ -886,10 +860,8 @@ const Player: React.FC<PlayerProps> = ({
                     <SignalBars strength={radio.isLive ? 5 : 1} />
                 </div>
 
-                {/* Ticker con canción actual — toma currentTrack en vivo (now-playing por socket) */}
                 <Ticker text={tickerText} paused={!isPlaying} />
 
-                {/* Barra de progreso segmentada — estado de reproducción en vivo */}
                 <div className="rs-stereo__progress-row">
                     <span className="rs-stereo__time-label">
                         {isPlaying ? 'LIVE' : '– –'}
@@ -905,15 +877,11 @@ const Player: React.FC<PlayerProps> = ({
                 </div>
             </div>
 
-            {/* VU Meter */}
             <VUMeter active={isPlaying && radio.isLive && !streamError} />
 
-            {/* Divisor */}
             <div className="rs-stereo__divider" />
 
-            {/* Controles */}
             <div className="rs-stereo__controls">
-                {/* Lado izquierdo: like + listeners */}
                 <div className="rs-stereo__side rs-stereo__side--left">
                     <button
                         className={`rs-stereo__btn${hasLiked ? ' rs-stereo__btn--liked' : ''}`}
@@ -921,16 +889,17 @@ const Player: React.FC<PlayerProps> = ({
                         aria-label={hasLiked ? 'Quitar like' : 'Dar like'}
                         title={`${radio.likes} likes`}
                     >
-                        {hasLiked ? <IoHeart size={15} /> : <IoHeartOutline size={15} />}
+                        <span style={{ fontSize: 15, lineHeight: 1 }}>
+                            {hasLiked ? '❤️' : '🤍'}
+                        </span>
                     </button>
 
                     <div className="rs-stereo__listeners" title="Oyentes">
-                        <IoPeopleOutline size={12} />
+                        <span style={{ fontSize: 12, lineHeight: 1 }}>👥</span>
                         <span>{listenerCount}</span>
                     </div>
                 </div>
 
-                {/* Play / Pause central */}
                 <button
                     className={`rs-stereo__play${isPlaying ? ' rs-stereo__play--playing' : ''}`}
                     onClick={onPlayPause}
@@ -940,15 +909,13 @@ const Player: React.FC<PlayerProps> = ({
                     {isLoadingStream ? (
                         <div className="rs-spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
                     ) : isPlaying ? (
-                        <IoPause size={22} />
+                        <span style={{ fontSize: 22, lineHeight: 1 }}>⏸️</span>
                     ) : (
-                        <IoPlay size={22} style={{ marginLeft: 2 }} />
+                        <span style={{ fontSize: 22, lineHeight: 1, marginLeft: 2 }}>▶️</span>
                     )}
                 </button>
 
-                {/* Lado derecho: volumen + compartir + error */}
                 <div className="rs-stereo__side rs-stereo__side--right">
-                    {/* ── Control de volumen (subir/bajar/mutear) ── */}
                     <VolumeControl
                         volume={listenerVolume}
                         muted={isListenerMuted}
@@ -962,7 +929,7 @@ const Player: React.FC<PlayerProps> = ({
                         onClick={onShare}
                         aria-label="Compartir"
                     >
-                        <IoShareSocialOutline size={15} />
+                        <span style={{ fontSize: 15, lineHeight: 1 }}>🔗</span>
                     </button>
 
                     {streamError && (
@@ -972,16 +939,14 @@ const Player: React.FC<PlayerProps> = ({
                             title={streamError}
                             aria-label="Error de conexión"
                         >
-                            <IoClose size={15} />
+                            <span style={{ fontSize: 15, lineHeight: 1 }}>✕</span>
                         </button>
                     )}
                 </div>
             </div>
 
-            {/* Divisor */}
             <div className="rs-stereo__divider" />
 
-            {/* Info inferior */}
             {radio.isLive ? (
                 <div className="rs-stereo__info">
                     <span className="rs-stereo__radio-name">{radio.name}</span>
@@ -995,7 +960,7 @@ const Player: React.FC<PlayerProps> = ({
             ) : (
                 <div className="rs-stereo__offline">
                     <div className="rs-stereo__offline-icon">
-                        <IoRadioOutline size={32} />
+                        <span style={{ fontSize: 32, lineHeight: 1 }}>📻</span>
                     </div>
                     <p className="rs-stereo__offline-title">Radio fuera de línea</p>
                     <p className="rs-stereo__offline-sub">
@@ -1232,7 +1197,6 @@ const RadioSystem: React.FC = () => {
         handleUpdateProfile, displayRadio, isOwner, canTransmit, canModerate,
     } = useRadioSystem({ radioId, user, getToken, loginUser });
 
-    // ── NUEVO: estado del volumen de escucha (solo aplica al OYENTE) ──
     const [listenerVolume, setListenerVolume] = useState(0.8);
     const [isListenerMuted, setIsListenerMuted] = useState(false);
 
@@ -1245,25 +1209,19 @@ const RadioSystem: React.FC = () => {
         setIsListenerMuted((m) => !m);
     };
 
-  const {
-    isLoadingStream, streamError, listenerCount, nowPlaying, emitNowPlaying,
-    isSharingSystemAudio, systemAudioError, shareSystemAudio, stopSystemAudio,
-    // Si tu hook useRadioStream expone una referencia al elemento <audio>
-    // (p. ej. `audioRef`), descomentá la siguiente línea para tomarla:
-    // audioRef,
-} = useRadioStream({
-    sessionId: radioId,
-    isOwner,
-    isPlaying,
-    micVolume,
-    musicVolume,
-    isMicMuted
-});
+    const {
+        isLoadingStream, streamError, listenerCount, nowPlaying, emitNowPlaying,
+        isSharingSystemAudio, systemAudioError, shareSystemAudio, stopSystemAudio,
+        // audioRef,
+    } = useRadioStream({
+        sessionId: radioId,
+        isOwner,
+        isPlaying,
+        micVolume,
+        musicVolume,
+        isMicMuted
+    });
 
-    // ── NUEVO: aplica el volumen/mute del oyente al audio real.
-    // Esto funciona si useRadioStream expone `audioRef` (descomentado arriba).
-    // Si tu hook maneja el audio de otra forma (ej. Web Audio API / GainNode),
-    // reemplazá el cuerpo de este efecto por la llamada equivalente de tu hook.
     /*
     useEffect(() => {
         if (isOwner) return;
@@ -1273,11 +1231,8 @@ const RadioSystem: React.FC = () => {
     }, [listenerVolume, isListenerMuted, isOwner, audioRef]);
     */
 
-    // NUEVO: cuando el OYENTE recibe "now playing" por socket, actualiza su
-    // currentTrack para que el Player (modo estéreo) muestre la canción que
-    // está sonando en vivo, en tiempo real.
     useEffect(() => {
-        if (isOwner) return; // el dueño ya maneja su propio currentTrack localmente
+        if (isOwner) return;
         if (!nowPlaying) return;
 
         setCurrentTrack(nowPlaying.id ? {
@@ -1392,7 +1347,6 @@ const RadioSystem: React.FC = () => {
             <div className="rs-page">
                 <div className="rs-container">
 
-                    {/* Header */}
                     <header className="rs-header">
                         <div className="rs-header__title-wrap">
                             <h1 className="rs-header__title">
@@ -1420,7 +1374,6 @@ const RadioSystem: React.FC = () => {
                         )}
                     </header>
 
-                    {/* Contenido */}
                     <div className="rs-stack">
                         <Player
                             radio={displayRadio}
@@ -1469,7 +1422,6 @@ const RadioSystem: React.FC = () => {
                                                 order: 0
                                             } : null);
                                         }}
-                                        // NUEVO: emite por socket cada cambio de canción / play / pause
                                         onNowPlayingChange={emitNowPlaying}
                                         onUploadToBackend={async (file, metadata) => {
                                             const token = getToken();
@@ -1540,7 +1492,6 @@ const RadioSystem: React.FC = () => {
                 </div>
             </div>
 
-            {/* Modales */}
             {showProfileModal && user && (
                 <ProfileModal
                     user={user}
