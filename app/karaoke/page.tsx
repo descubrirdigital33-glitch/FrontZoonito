@@ -374,7 +374,15 @@ const Karaoke: React.FC<KaraokeProps> = ({ currentSong, isPlaying, inlineMode = 
       // ===== TRANSICIÓN SUAVE DE LETRAS (mejora) =====
       // Interpolamos hacia `currentLine` cada frame en vez de saltar de golpe,
       // pero una vez que una línea "pasó", se corta rápido en vez de quedar estorbando.
-      currentLinePosRef.current += (currentLine - currentLinePosRef.current) * 0.18;
+      const gap = currentLine - currentLinePosRef.current;
+      if (Math.abs(gap) > 1.2) {
+        // Se atrasó demasiado (saltó de línea rápido, o cambio de canción/seek):
+        // "alcanzamos" rápido en vez de seguir arrastrando el retraso.
+        currentLinePosRef.current += gap * 0.6;
+      } else {
+        // Transición normal entre una línea y la siguiente: suave.
+        currentLinePosRef.current += gap * 0.25;
+      }
       const smoothLine = currentLinePosRef.current;
 
       const centerY = canvas.height / 2;
